@@ -19,7 +19,7 @@ from statsmodels.tsa import arima_model as arima
 from .results import results_sarimax
 from statsmodels.tools import add_constant
 from numpy.testing import (
-    assert_equal, assert_almost_equal, assert_raises, assert_allclose
+    assert_, assert_equal, assert_almost_equal, assert_raises, assert_allclose
 )
 
 
@@ -977,7 +977,7 @@ class SARIMAXCoverageTest(object):
         )
 
     def test_start_params(self):
-        # just a quick test that start_params isn't throwing an exception
+        # just a quick test that start_params is not throwing an exception
         # (other than related to invertibility)
         stat = self.model.enforce_stationarity
         inv = self.model.enforce_invertibility
@@ -1970,7 +1970,7 @@ def test_simple_time_varying():
         time_varying_regression=True,
         mle_regression=False)
 
-    # Ignore the warning that MLE doesn't converge
+    # Ignore the warning that MLE does not converge
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         res = mod.fit(disp=-1)
@@ -2177,11 +2177,6 @@ def test_arima000():
     res = mod.smooth(mod.start_params)
     assert_allclose(res.smoothed_state[1:, 1:], endog.diff()[1:].T)
 
-    # SARIMA(0, 1, 0)x(0, 1, 0, 1)
-    mod = sarimax.SARIMAX(endog, order=(0, 1, 0), measurement_error=True,
-                          seasonal_order=(0, 1, 0, 1))
-    res = mod.smooth(mod.start_params)
-
     # Exogenous variables
     error = np.random.normal(size=nobs)
     endog = np.ones(nobs) * 10 + error
@@ -2267,7 +2262,7 @@ def check_concentrated_scale(filter_univariate=False):
         # the non-concentrated model will expect as parameters
         if kwargs['time_varying_regression'] and kwargs['exog'] is not None:
             k_snr += 1
-        # Note: the log-likelihood isn't exactly the same between concentrated
+        # Note: the log-likelihood is not exactly the same between concentrated
         # and non-concentrated models with time-varying regression, so this
         # combinations raises NotImplementedError.
 
@@ -2309,7 +2304,7 @@ def check_concentrated_scale(filter_univariate=False):
             desired = getattr(res_orig.filter_results, name)
             assert_allclose(actual, desired, atol=atol)
 
-        # Note: don't want to compare the elements from any diffuse
+        # Note: do not want to compare the elements from any diffuse
         # initialization for things like covariances, so only compare for
         # periods past the loglikelihood_burn period
         filter_attr_burn = ['llf_obs', 'standardized_forecasts_error',
@@ -2386,7 +2381,7 @@ def check_concentrated_scale(filter_univariate=False):
         assert_allclose(actual.se_mean, desired.se_mean, atol=atol)
 
         # Test simulate
-        # Simulate is currently broken for time-varying models, so don't try
+        # Simulate is currently broken for time-varying models, so do not try
         # to test it here
         np.random.seed(13847)
         if mod_conc.ssm.time_invariant:
@@ -2518,8 +2513,8 @@ def test_append_results():
 
     assert_equal(res1.specification, res3.specification)
 
-    for attr in ['nobs', 'llf', 'llf_obs', 'loglikelihood_burn',
-                 'cov_params_default']:
+    assert_allclose(res3.cov_params_default, res2.cov_params_default)
+    for attr in ['nobs', 'llf', 'llf_obs', 'loglikelihood_burn']:
         assert_equal(getattr(res3, attr), getattr(res1, attr))
 
     for attr in [
@@ -2539,6 +2534,10 @@ def test_append_results():
 
     assert_allclose(res3.forecast(10, exog=np.ones(10)),
                     res1.forecast(10, exog=np.ones(10)))
+
+    # Check that we get an error if we try to append without exog
+    with pytest.raises(ValueError, match='Cloning a model with an exogenous'):
+        res2.append(endog[50:])
 
 
 def test_extend_results():
@@ -2578,6 +2577,10 @@ def test_extend_results():
     assert_allclose(res3.forecast(10, exog=np.ones(10)),
                     res1.forecast(10, exog=np.ones(10)))
 
+    # Check that we get an error if we try to extend without exog
+    with pytest.raises(ValueError, match='Cloning a model with an exogenous'):
+        res2.extend(endog[50:])
+
 
 def test_apply_results():
     endog = np.arange(100)
@@ -2596,8 +2599,8 @@ def test_apply_results():
 
     assert_equal(res1.specification, res3.specification)
 
-    for attr in ['nobs', 'llf', 'llf_obs', 'loglikelihood_burn',
-                 'cov_params_default']:
+    assert_allclose(res3.cov_params_default, res2.cov_params_default)
+    for attr in ['nobs', 'llf', 'llf_obs', 'loglikelihood_burn']:
         assert_equal(getattr(res3, attr), getattr(res1, attr))
 
     for attr in [
@@ -2617,3 +2620,90 @@ def test_apply_results():
 
     assert_allclose(res3.forecast(10, exog=np.ones(10)),
                     res1.forecast(10, exog=np.ones(10)))
+
+    # Check that we get an error if we try to apply without exog
+    with pytest.raises(ValueError, match='Cloning a model with an exogenous'):
+        res2.apply(endog[50:])
+
+
+def test_start_params_small_nobs():
+    # Test that starting parameters work even when nobs is very small, but
+    # issues a warning.
+    endog = np.log(realgdp_results['value']).diff()[1:].values
+
+    # Regular ARMA
+    mod = sarimax.SARIMAX(endog[:4], order=(4, 0, 0))
+    match = ('Too few observations to estimate starting parameters for ARMA'
+             ' and trend.')
+    with pytest.warns(UserWarning, match=match):
+        start_params = mod.start_params
+        assert_allclose(start_params, [0, 0, 0, 0, np.var(endog[:4])])
+
+    # Seasonal ARMA
+    mod = sarimax.SARIMAX(endog[:4], order=(0, 0, 0),
+                          seasonal_order=(1, 0, 0, 4))
+    match = ('Too few observations to estimate starting parameters for'
+             ' seasonal ARMA.')
+    with pytest.warns(UserWarning, match=match):
+        start_params = mod.start_params
+        assert_allclose(start_params, [0, np.var(endog[:4])])
+
+
+def test_simple_differencing_int64index():
+    values = np.log(realgdp_results['value']).values
+    endog = pd.Series(values, index=pd.Int64Index(range(len(values))))
+    mod = sarimax.SARIMAX(endog, order=(1, 1, 0), simple_differencing=True)
+
+    assert_(mod._index.equals(endog.index[1:]))
+
+
+def test_simple_differencing_rangeindex():
+    values = np.log(realgdp_results['value']).values
+    endog = pd.Series(values, index=pd.RangeIndex(start=0, stop=len(values)))
+    mod = sarimax.SARIMAX(endog, order=(1, 1, 0), simple_differencing=True)
+
+    assert_(mod._index.equals(endog.index[1:]))
+
+
+def test_simple_differencing_dateindex():
+    values = np.log(realgdp_results['value']).values
+    endog = pd.Series(values, index=pd.period_range(
+        start='2000', periods=len(values), freq='M'))
+    mod = sarimax.SARIMAX(endog, order=(1, 1, 0), simple_differencing=True)
+
+    assert_(mod._index.equals(endog.index[1:]))
+
+
+def test_simple_differencing_strindex():
+    values = np.log(realgdp_results['value']).values
+    index = pd.Int64Index(range(len(values))).map(str)
+    endog = pd.Series(values, index=index)
+    with pytest.warns(UserWarning):
+        mod = sarimax.SARIMAX(endog, order=(1, 1, 0), simple_differencing=True)
+
+    assert_(mod._index.equals(pd.RangeIndex(start=0, stop=len(values) - 1)))
+    assert_(mod.data.row_labels.equals(index[1:]))
+
+
+def test_invalid_order():
+    endog = np.zeros(10)
+    with pytest.raises(ValueError):
+        sarimax.SARIMAX(endog, order=(1,))
+    with pytest.raises(ValueError):
+        sarimax.SARIMAX(endog, order=(1, 2, 3, 4))
+
+
+def test_invalid_seasonal_order():
+    endog = np.zeros(10)
+    with pytest.raises(ValueError):
+        sarimax.SARIMAX(endog, seasonal_order=(1,))
+    with pytest.raises(ValueError):
+        sarimax.SARIMAX(endog, seasonal_order=(1, 2, 3, 4, 5))
+    with pytest.raises(ValueError):
+        sarimax.SARIMAX(endog, seasonal_order=(1, 0, 0, 0))
+    with pytest.raises(ValueError):
+        sarimax.SARIMAX(endog, seasonal_order=(0, 0, 1, 0))
+    with pytest.raises(ValueError):
+        sarimax.SARIMAX(endog, seasonal_order=(1, 0, 1, 0))
+    with pytest.raises(ValueError):
+        sarimax.SARIMAX(endog, seasonal_order=(0, 0, 0, 1))

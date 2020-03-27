@@ -17,13 +17,11 @@ code written by James P. Lesage in Applied Econometrics Using MATLAB(1999).PP.
 Prinoth (christian at prinoth dot name).
 '''
 
-from statsmodels.compat.python import range
 import numpy as np
 import warnings
 import scipy.stats as stats
-from scipy.linalg import pinv
+from numpy.linalg import pinv
 from scipy.stats import norm
-from statsmodels.tools.tools import chain_dot
 from statsmodels.tools.decorators import cache_readonly
 from statsmodels.regression.linear_model import (RegressionModel,
                                                  RegressionResults,
@@ -87,20 +85,21 @@ class QuantReg(RegressionModel):
 
     def fit(self, q=.5, vcov='robust', kernel='epa', bandwidth='hsheather',
             max_iter=1000, p_tol=1e-6, **kwargs):
-        '''Solve by Iterative Weighted Least Squares
+        """
+        Solve by Iterative Weighted Least Squares
 
         Parameters
         ----------
         q : float
             Quantile must be between 0 and 1
-        vcov : string, method used to calculate the variance-covariance matrix
+        vcov : str, method used to calculate the variance-covariance matrix
             of the parameters. Default is ``robust``:
 
             - robust : heteroskedasticity robust standard errors (as suggested
               in Greene 6th edition)
             - iid : iid errors (as in Stata 12)
 
-        kernel : string, kernel to use in the kernel density estimation for the
+        kernel : str, kernel to use in the kernel density estimation for the
             asymptotic covariance matrix:
 
             - epa: Epanechnikov
@@ -108,14 +107,14 @@ class QuantReg(RegressionModel):
             - gau: Gaussian
             - par: Parzene
 
-        bandwidth: string, Bandwidth selection method in kernel density
+        bandwidth : str, Bandwidth selection method in kernel density
             estimation for asymptotic covariance estimate (full
             references in QuantReg docstring):
 
             - hsheather: Hall-Sheather (1988)
             - bofinger: Bofinger (1975)
             - chamberlain: Chamberlain (1994)
-        '''
+        """
 
         if q < 0 or q > 1:
             raise Exception('p must be between 0 and 1')
@@ -148,15 +147,15 @@ class QuantReg(RegressionModel):
         beta = np.ones(exog_rank)
         # TODO: better start, initial beta is used only for convergence check
 
-        # Note the following doesn't work yet,
+        # Note the following does not work yet,
         # the iteration loop always starts with OLS as initial beta
-#        if start_params is not None:
-#            if len(start_params) != rank:
-#                raise ValueError('start_params has wrong length')
-#            beta = start_params
-#        else:
-#            # start with OLS
-#            beta = np.dot(np.linalg.pinv(exog), endog)
+        # if start_params is not None:
+        #    if len(start_params) != rank:
+        #       raise ValueError('start_params has wrong length')
+        #       beta = start_params
+        #    else:
+        #       # start with OLS
+        #       beta = np.dot(np.linalg.pinv(exog), endog)
 
         diff = 10
         cycle = False
@@ -180,7 +179,7 @@ class QuantReg(RegressionModel):
             history['mse'].append(np.mean(resid*resid))
 
             if (n_iter >= 300) and (n_iter % 100 == 0):
-                # check for convergence circle, shouldn't happen
+                # check for convergence circle, should not happen
                 for ii in range(2, 10):
                     if np.all(beta == history['params'][-ii]):
                         cycle = True
@@ -206,7 +205,7 @@ class QuantReg(RegressionModel):
             d = np.where(e > 0, (q/fhat0)**2, ((1-q)/fhat0)**2)
             xtxi = pinv(np.dot(exog.T, exog))
             xtdx = np.dot(exog.T * d[np.newaxis, :], exog)
-            vcov = chain_dot(xtxi, xtdx, xtxi)
+            vcov = xtxi @ xtdx @ xtxi
         elif vcov == 'iid':
             vcov = (1. / fhat0)**2 * q * (1 - q) * pinv(np.dot(exog.T, exog))
         else:

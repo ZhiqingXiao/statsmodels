@@ -2,7 +2,9 @@
 Base tools for handling various kinds of data structures, attaching metadata to
 results, and doing data cleaning
 """
-from statsmodels.compat.python import reduce, iteritems, lmap, zip, range
+from statsmodels.compat.python import iteritems, lmap
+
+from functools import reduce
 
 import numpy as np
 from pandas import DataFrame, Series, isnull, MultiIndex
@@ -22,7 +24,7 @@ def _asarray_2d_null_rows(x):
     Makes sure input is an array and is 2d. Makes sure output is 2d. True
     indicates a null in the rows of 2d x.
     """
-    #Have to have the asarrays because isnull doesn't account for array_like
+    #Have to have the asarrays because isnull does not account for array_like
     #input
     x = np.asarray(x)
     if x.ndim == 1:
@@ -53,9 +55,14 @@ class ModelData(object):
     appropriate form
     """
     _param_names = None
+    _cov_names = None
 
     def __init__(self, endog, exog=None, missing='none', hasconst=None,
                  **kwargs):
+        if data_util._is_recarray(endog) or data_util._is_recarray(exog):
+            import warnings
+            from statsmodels.tools.sm_exceptions import recarray_warning
+            warnings.warn(recarray_warning, FutureWarning)
         if 'design_info' in kwargs:
             self.design_info = kwargs.pop('design_info')
         if 'formula' in kwargs:
@@ -121,15 +128,16 @@ class ModelData(object):
         else:
             # detect where the constant is
             check_implicit = False
-            ptp_ = np.ptp(self.exog, axis=0)
-            if not np.isfinite(ptp_).all():
+            exog_max = np.max(self.exog, axis=0)
+            if not np.isfinite(exog_max).all():
                 raise MissingDataError('exog contains inf or nans')
-            const_idx = np.where(ptp_ == 0)[0].squeeze()
+            exog_min = np.min(self.exog, axis=0)
+            const_idx = np.where(exog_max == exog_min)[0].squeeze()
             self.k_constant = const_idx.size
 
             if self.k_constant == 1:
                 if self.exog[:, const_idx].mean() != 0:
-                    self.const_idx = const_idx
+                    self.const_idx = int(const_idx)
                 else:
                     # we only have a zero column and no other constant
                     check_implicit = True
@@ -141,23 +149,23 @@ class ModelData(object):
                     value = self.exog[:, idx].mean()
                     if value == 1:
                         self.k_constant = 1
-                        self.const_idx = idx
+                        self.const_idx = int(idx)
                         break
                     values.append(value)
                 else:
-                    # we didn't break, no column of ones
+                    # we did not break, no column of ones
                     pos = (np.array(values) != 0)
                     if pos.any():
                         # take the first nonzero column
                         self.k_constant = 1
-                        self.const_idx = const_idx[pos.argmax()]
+                        self.const_idx = int(const_idx[pos.argmax()])
                     else:
                         # only zero columns
                         check_implicit = True
             elif self.k_constant == 0:
                 check_implicit = True
             else:
-                # shouldn't be here
+                # should not be here
                 pass
 
             if check_implicit and not hasconst:
@@ -171,7 +179,7 @@ class ModelData(object):
                 self.const_idx = None
             elif hasconst:
                 # Ensure k_constant is 1 any time hasconst is True
-                # even if one isn't found
+                # even if one is not found
                 self.k_constant = 1
 
     @classmethod
@@ -229,7 +237,7 @@ class ModelData(object):
                     combined_2d_names += [key]
                 else:
                     raise ValueError("Arrays with more than 2 dimensions "
-                                     "aren't yet handled")
+                                     "are not yet handled")
 
         if missing_idx is not None:
             nan_mask = missing_idx
@@ -258,7 +266,7 @@ class ModelData(object):
             if combined_2d:
                 nan_mask = _nan_rows(*(nan_mask[:, None],) + combined_2d)
 
-        if not np.any(nan_mask):  # no missing don't do anything
+        if not np.any(nan_mask):  # no missing do not do anything
             combined = dict(zip(combined_names, combined))
             if combined_2d:
                 combined.update(dict(zip(combined_2d_names, combined_2d)))
@@ -350,6 +358,26 @@ class ModelData(object):
     def param_names(self, values):
         self._param_names = values
 
+    @property
+    def cov_names(self):
+        """
+        Labels for covariance matrices
+
+        In multidimensional models, each dimension of a covariance matrix
+        differs from the number of param_names.
+
+        If not set, returns param_names
+        """
+        # for handling names of covariance names in multidimensional models
+        if self._cov_names is not None:
+            return self._cov_names
+        return self.param_names
+
+    @cov_names.setter
+    def cov_names(self, value):
+        # for handling names of covariance names in multidimensional models
+        self._cov_names = value
+
     @cache_readonly
     def row_labels(self):
         exog = self.orig_exog
@@ -425,6 +453,8 @@ class ModelData(object):
             return self.attach_generic_columns_2d(obj, names)
         elif how == 'ynames':
             return self.attach_ynames(obj)
+        elif how == 'multivariate_confint':
+            return self.attach_mv_confint(obj)
         else:
             return obj
 
@@ -444,6 +474,9 @@ class ModelData(object):
         return result
 
     def attach_dates(self, result):
+        return result
+
+    def attach_mv_confint(self, result):
         return result
 
     def attach_generic_columns(self, result, *args, **kwargs):
@@ -520,7 +553,7 @@ class PandasData(ModelData):
 
     def attach_columns(self, result):
         # this can either be a 1d array or a scalar
-        # don't squeeze because it might be a 2d row array
+        # do not squeeze because it might be a 2d row array
         # if it needs a squeeze, the bug is elsewhere
         if result.ndim <= 1:
             return Series(result, index=self.param_names)
@@ -531,8 +564,7 @@ class PandasData(ModelData):
         return DataFrame(result, index=self.xnames, columns=self.ynames)
 
     def attach_cov(self, result):
-        return DataFrame(result, index=self.param_names,
-                         columns=self.param_names)
+        return DataFrame(result, index=self.cov_names, columns=self.cov_names)
 
     def attach_cov_eq(self, result):
         return DataFrame(result, index=self.ynames, columns=self.ynames)
@@ -555,13 +587,18 @@ class PandasData(ModelData):
         squeezed = result.squeeze()
         k_endog = np.array(self.ynames, ndmin=1).shape[0]
         if k_endog > 1 and squeezed.shape == (k_endog,):
-            squeezed = squeezed[None, :]
+            squeezed = np.asarray(squeezed)[None, :]
         # May be zero-dim, for example in the case of forecast one step in tsa
         if squeezed.ndim < 2:
             return Series(squeezed, index=self.predict_dates)
         else:
             return DataFrame(result, index=self.predict_dates,
                              columns=self.ynames)
+
+    def attach_mv_confint(self, result):
+        return DataFrame(result.reshape((-1, 2)),
+                         index=self.cov_names,
+                         columns=['lower', 'upper'])
 
     def attach_ynames(self, result):
         squeezed = result.squeeze()

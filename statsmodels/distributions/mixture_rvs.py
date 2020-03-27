@@ -1,4 +1,3 @@
-from statsmodels.compat.python import range
 import numpy as np
 
 def _make_index(prob,size):
@@ -217,7 +216,6 @@ def mv_mixture_rvs(prob, size, dist, nvars, **kwargs):
     mvn3 = mvd.MVNormal(mu, cov3)
     mvn32 = mvd.MVNormal(mu2, cov3/2., 4)
     rvs = mix.mv_mixture_rvs([0.4, 0.6], 2000, [mvn3, mvn32], 3)
-
     """
     if len(prob) != len(dist):
         raise ValueError("You must provide as many probabilities as distributions")

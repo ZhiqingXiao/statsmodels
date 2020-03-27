@@ -11,7 +11,6 @@ TODO: update script to use sharex, sharey, and visible=False
 '''
 
 
-from statsmodels.compat.python import range
 import numpy as np
 from scipy import stats
 
@@ -54,7 +53,7 @@ def scatter_ellipse(data, level=0.9, varnames=None, ell_kwds=None,
         Input data.
     level : scalar, optional
         Default is 0.9.
-    varnames : list of str, optional
+    varnames : list[str], optional
         Variable names.  Used for y-axis labels, and if `add_titles` is True
         also for titles.  If not given, integers 1..data.shape[1] are used.
     ell_kwds : dict, optional
@@ -66,13 +65,13 @@ def scatter_ellipse(data, level=0.9, varnames=None, ell_kwds=None,
         Titles are constructed from `varnames`.
     keep_ticks : bool, optional
         If False (default), remove all axis ticks.
-    fig : Matplotlib figure instance, optional
+    fig : Figure, optional
         If given, this figure is simply returned.  Otherwise a new figure is
         created.
 
     Returns
     -------
-    fig : Matplotlib figure instance
+    Figure
         If `fig` is None, the created figure.  Otherwise `fig` itself.
 
     Examples
@@ -115,7 +114,7 @@ def scatter_ellipse(data, level=0.9, varnames=None, ell_kwds=None,
         for j in range(i):
             #print i,j, i*(nvars-1)+j+1
             ax = fig.add_subplot(nvars-1, nvars-1, (i-1)*(nvars-1)+j+1)
-##                                 #sharey=ax_last) #sharey doesn't allow empty ticks?
+##                                 #sharey=ax_last) #sharey does not allow empty ticks?
 ##            if j == 0:
 ##                print 'new ax_last', j
 ##                ax_last = ax

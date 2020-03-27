@@ -1,4 +1,6 @@
-from statsmodels.compat.python import lmap, BytesIO
+from statsmodels.compat.python import lmap
+
+from io import BytesIO
 
 import numpy as np
 import pandas as pd
@@ -134,6 +136,33 @@ def test_plot_acf_kwargs(close_figures):
     with_vlines = buff_with_vlines.read()
 
     assert_(with_vlines != plain)
+
+
+@pytest.mark.matplotlib
+def test_plot_acf_missing(close_figures):
+    # Just test that it runs.
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    ar = np.r_[1., -0.9]
+    ma = np.r_[1., 0.9]
+    armaprocess = tsp.ArmaProcess(ar, ma)
+    rs = np.random.RandomState(1234)
+    acf = armaprocess.generate_sample(100, distrvs=rs.standard_normal)
+    acf[::13] = np.nan
+
+    buff = BytesIO()
+    plot_acf(acf, ax=ax, missing='drop')
+    fig.savefig(buff, format='rgba')
+    buff.seek(0)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    buff_conservative = BytesIO()
+    plot_acf(acf, ax=ax, missing='conservative')
+    fig.savefig(buff_conservative, format='rgba')
+    buff_conservative.seek(0)
+    assert_(buff.read() != buff_conservative.read())
 
 
 @pytest.mark.matplotlib

@@ -5,7 +5,6 @@
 
 
 from statsmodels.compat.pandas import frequencies
-from statsmodels.compat.python import zip
 from datetime import datetime
 
 import numpy as np
@@ -47,7 +46,6 @@ print(hub_results.summary())
 
 def plot_acf_multiple(ys, lags=20):
     """
-
     """
     from statsmodels.tsa.stattools import acf
     # hack

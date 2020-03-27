@@ -1,17 +1,19 @@
 """
 Tests for iolib/foreign.py
 """
+from statsmodels.compat.pandas import assert_frame_equal
+
 import os
 import warnings
 from datetime import datetime
+from io import BytesIO
 
 from numpy.testing import assert_array_equal, assert_, assert_equal
 import numpy as np
-from pandas import DataFrame, isnull
-import pandas.util.testing as ptesting
+from pandas import DataFrame, isnull, Timestamp
 import pytest
 
-from statsmodels.compat.python import BytesIO, asbytes
+from statsmodels.compat.python import asbytes
 from statsmodels.iolib.foreign import (StataWriter, genfromdta,
             _datetime_to_stata_elapsed, _stata_elapsed_date_to_datetime)
 from statsmodels.datasets import macrodata
@@ -36,7 +38,6 @@ def test_genfromdta():
 
 
 def test_genfromdta_pandas():
-    from pandas.util.testing import assert_frame_equal
     dta = macrodata.load_pandas().data
     curdir = os.path.dirname(os.path.abspath(__file__))
 
@@ -129,10 +130,10 @@ def test_stata_writer_pandas():
     # dta2 is int32 'i4'  returned from Stata reader
 
     if dta5.dtypes[1] is np.dtype('int64'):
-        ptesting.assert_frame_equal(dta.reset_index(), dta5)
+        assert_frame_equal(dta.reset_index(), dta5)
     else:
-        # don't check index because it has different size, int32 versus int64
-        ptesting.assert_frame_equal(dta4, dta5[dta5.columns[1:]])
+        # do not check index because it has different size, int32 versus int64
+        assert_frame_equal(dta4, dta5[dta5.columns[1:]])
 
 def test_stata_writer_unicode():
     # make sure to test with characters outside the latin-1 encoding
@@ -160,9 +161,17 @@ def test_genfromdta_datetime():
             dta = genfromdta(os.path.join(curdir,
                                           "results/time_series_examples.dta"),
                              pandas=True)
+    for i, row in enumerate(results):
+        new = []
+        for val in row:
+            if isinstance(val, datetime) and val.year > 2:
+                new.append(Timestamp(val))
+            else:
+                new.append(val)
+        results[i] = new
 
-    assert_array_equal(dta.iloc[0].tolist(), results[0])
-    assert_array_equal(dta.iloc[1].tolist(), results[1])
+    assert dta.iloc[0].tolist() == results[0]
+    assert dta.iloc[1].tolist() == results[1]
 
 
 def test_date_converters():
@@ -226,4 +235,4 @@ def test_datetime_roundtrip():
     with pytest.warns(FutureWarning):
         dta2 = genfromdta(buf, pandas=True)
 
-    ptesting.assert_frame_equal(dta, dta2.drop('index', axis=1))
+    assert_frame_equal(dta, dta2.drop('index', axis=1))

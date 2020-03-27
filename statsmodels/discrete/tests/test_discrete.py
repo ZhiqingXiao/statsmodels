@@ -8,28 +8,31 @@ in the Stata *.dta -> *.csv output, NOT the estimator for the Poisson
 tests.
 """
 # pylint: disable-msg=E1101
-from statsmodels.compat.python import range
+from statsmodels.compat.pandas import assert_index_equal
 
 import os
 import warnings
 
 import numpy as np
-import pandas as pd
 from numpy.testing import (assert_, assert_raises, assert_almost_equal,
                            assert_equal, assert_array_equal, assert_allclose,
                            assert_array_less)
+import pandas as pd
 import pytest
+from scipy import stats
 
 from statsmodels.discrete.discrete_model import (Logit, Probit, MNLogit,
-                                                Poisson, NegativeBinomial,
-                                                CountModel, GeneralizedPoisson,
-                                                NegativeBinomialP)
+                                                 Poisson, NegativeBinomial,
+                                                 CountModel,
+                                                 GeneralizedPoisson,
+                                                 NegativeBinomialP)
 from statsmodels.discrete.discrete_margins import _iscount, _isdummy
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from .results.results_discrete import Spector, DiscreteL1, RandHIE, Anes
 from statsmodels.tools.sm_exceptions import (PerfectSeparationError,
-                                             SpecificationWarning)
+                                             SpecificationWarning,
+                                             ConvergenceWarning)
 from scipy.stats import nbinom
 
 try:
@@ -702,7 +705,7 @@ class TestNegativeBinomialL1Compatability(CheckL1Compatability):
         # Do a regularized fit with alpha, effectively dropping the last column
         alpha = 10 * len(rand_data.endog) * np.ones(cls.kvars + 1)
         alpha[:cls.m] = 0
-        alpha[-1] = 0  # don't penalize alpha
+        alpha[-1] = 0  # do not penalize alpha
 
         mod_reg = sm.NegativeBinomial(rand_data.endog, rand_exog)
         cls.res_reg = mod_reg.fit_regularized(
@@ -780,7 +783,7 @@ class TestMNLogitL1Compatability(CheckL1Compatability):
         assert_almost_equal(t_unreg.effect, t_reg.effect[:m], DECIMAL_3)
         assert_almost_equal(t_unreg.sd, t_reg.sd[:m], DECIMAL_3)
         assert_almost_equal(np.nan, t_reg.sd[m])
-        assert_almost_equal(t_unreg.tvalue, t_reg.tvalue[:m, :m], DECIMAL_3)
+        assert_almost_equal(t_unreg.tvalue, t_reg.tvalue[:m], DECIMAL_3)
 
     @pytest.mark.skip("Skipped test_f_test for MNLogit")
     def test_f_test(self):
@@ -1365,7 +1368,7 @@ class CheckMNLogitBaseZero(CheckModelResults):
         # the rows should add up for pred table
         assert_array_equal(self.res1.pred_table().sum(0), np.bincount(pred))
 
-        # note this is just a regression test, gretl doesn't have a prediction
+        # note this is just a regression test, gretl does not have a prediction
         # table
         pred = [[ 126.,   41.,    2.,    0.,    0.,   12.,   19.],
                 [  77.,   73.,    3.,    0.,    0.,   15.,   12.],
@@ -1432,10 +1435,7 @@ def test_perfect_prediction():
     #turn off raise PerfectSeparationError
     mod.raise_on_perfect_prediction = False
     # this will raise if you set maxiter high enough with a singular matrix
-    from pandas.util.testing import assert_produces_warning
-    # this is not thread-safe
-    with assert_produces_warning():
-        warnings.simplefilter('always')
+    with pytest.warns(ConvergenceWarning):
         res = mod.fit(disp=False, maxiter=50)  # should not raise but does warn
     assert_(not res.mle_retvals['converged'])
 
@@ -1458,17 +1458,15 @@ def test_poisson_predict():
 
 
 def test_poisson_newton():
-    #GH: 24, Newton doesn't work well sometimes
+    #GH: 24, Newton does not work well sometimes
     nobs = 10000
     np.random.seed(987689)
     x = np.random.randn(nobs, 3)
     x = sm.add_constant(x, prepend=True)
     y_count = np.random.poisson(np.exp(x.sum(1)))
     mod = sm.Poisson(y_count, x)
-    from pandas.util.testing import assert_produces_warning
     # this is not thread-safe
-    with assert_produces_warning():
-        warnings.simplefilter('always')
+    with pytest.warns(ConvergenceWarning):
         res = mod.fit(start_params=-np.ones(4), method='newton', disp=0)
 
     assert_(not res.mle_retvals['converged'])
@@ -1550,6 +1548,18 @@ def test_mnlogit_factor():
     assert_allclose(params_f, params, rtol=1e-10)
     predicted_f = res2.predict(dta.exog.iloc[:5, :])
     assert_allclose(predicted_f, predicted, rtol=1e-10)
+
+
+def test_mnlogit_factor_categorical():
+    dta = sm.datasets.anes96.load_pandas()
+    dta['endog'] = dta.endog.replace(dict(zip(range(7), 'ABCDEFG')))
+    exog = sm.add_constant(dta.exog, prepend=True)
+    mod = sm.MNLogit(dta.endog, exog)
+    res = mod.fit(disp=0)
+    dta['endog'] = dta['endog'].astype('category')
+    mod = sm.MNLogit(dta.endog, exog)
+    res_cat = mod.fit(disp=0)
+    assert_allclose(res.params, res_cat.params)
 
 
 def test_formula_missing_exposure():
@@ -1750,7 +1760,7 @@ class TestGeneralizedPoisson_p1(object):
     def test_fit_regularized(self):
         model = self.res1.model
 
-        # don't penalize constant and dispersion parameter
+        # do not penalize constant and dispersion parameter
         alpha = np.ones(len(self.res1.params))
         alpha[-2:] = 0
         # the first prints currently a warning, irrelevant here
@@ -2062,7 +2072,7 @@ class TestNegativeBinomialPL1Compatability(CheckL1Compatability):
         # Do a regularized fit with alpha, effectively dropping the last column
         alpha = 10 * len(rand_data.endog) * np.ones(cls.kvars + 1)
         alpha[:cls.m] = 0
-        alpha[-1] = 0  # don't penalize alpha
+        alpha[-1] = 0  # do not penalize alpha
 
         mod_reg = sm.NegativeBinomialP(rand_data.endog, rand_exog)
         cls.res_reg = mod_reg.fit_regularized(
@@ -2141,7 +2151,7 @@ class CheckNull(object):
 
         res_null1 = self.res_null
         assert_allclose(llf0, res_null1.llf, rtol=1e-6)
-        # Note default convergence tolerance doesn't get lower rtol
+        # Note default convergence tolerance does not get lower rtol
         # from different starting values (using bfgs)
         assert_allclose(res_null0.params, res_null1.params, rtol=5e-5)
 
@@ -2328,9 +2338,7 @@ def test_optim_kwds_prelim():
 
 
 def test_unchanging_degrees_of_freedom():
-    import warnings
-    with pytest.warns(None):
-        data = sm.datasets.randhie.load(as_pandas=False)
+    data = sm.datasets.randhie.load(as_pandas=False)
     # see GH3734
     warnings.simplefilter('error')
     model = sm.NegativeBinomial(data.endog, data.exog, loglike_method='nb2')
@@ -2349,7 +2357,7 @@ def test_unchanging_degrees_of_freedom():
     # If res2.df_model == res1.df_model, then this test is invalid.
 
     res3 = model.fit(start_params=params, disp=0)
-    # Test that the call to `fit_regularized` didn't
+    # Test that the call to `fit_regularized` did not
     # modify model.df_model inplace.
     assert_equal(res3.df_model, res1.df_model)
     assert_equal(res3.df_resid, res1.df_resid)
@@ -2357,8 +2365,42 @@ def test_unchanging_degrees_of_freedom():
 
 def test_mnlogit_float_name():
     df = pd.DataFrame({"A": [0., 1.1, 0, 0, 1.1], "B": [0, 1, 0, 1, 1]})
-    result = smf.mnlogit(formula="A ~ B", data=df).fit()
     with pytest.warns(SpecificationWarning,
                       match='endog contains values are that not int-like'):
-        summ = result.summary().as_text()
+        result = smf.mnlogit(formula="A ~ B", data=df).fit()
+    summ = result.summary().as_text()
     assert 'A=1.1' in summ
+
+
+def test_cov_confint_pandas():
+    data = sm.datasets.anes96.load(as_pandas=True)
+    exog = sm.add_constant(data.exog, prepend=False)
+    res1 = sm.MNLogit(data.endog, exog).fit(method="newton", disp=0)
+    cov = res1.cov_params()
+    ci = res1.conf_int()
+    se = np.sqrt(np.diag(cov))
+    se2 = (ci.iloc[:, 1] - ci.iloc[:, 0]) / (2 * stats.norm.ppf(0.975))
+    assert_allclose(se, se2)
+    assert_index_equal(ci.index, cov.index)
+    assert_index_equal(cov.index, cov.columns)
+    assert isinstance(ci.index, pd.MultiIndex)
+
+
+def test_t_test():
+    # GH669, check t_test works in multivariate model
+    data = sm.datasets.anes96.load(as_pandas=True)
+    exog = sm.add_constant(data.exog, prepend=False)
+    res1 = sm.MNLogit(data.endog, exog).fit(disp=0)
+    r = np.ones(res1.cov_params().shape[0])
+    t1 = res1.t_test(r)
+    f1 = res1.f_test(r)
+
+    data = sm.datasets.anes96.load(as_pandas=True)
+    exog = sm.add_constant(data.exog, prepend=False)
+    endog, exog = np.asarray(data.endog), np.asarray(exog)
+    res2 = sm.MNLogit(endog, exog).fit(disp=0)
+    t2 = res2.t_test(r)
+    f2 = res2.f_test(r)
+
+    assert_allclose(t1.effect, t2.effect)
+    assert_allclose(f1.statistic, f2.statistic)

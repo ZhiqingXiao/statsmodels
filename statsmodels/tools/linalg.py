@@ -1,9 +1,10 @@
 """
 Linear Algebra solvers and other helpers
 """
-from statsmodels.compat.python import range
 import numpy as np
-from scipy.linalg import pinv, pinv2, lstsq  # noqa:F401
+
+__all__ = ["logdet_symm", "stationary_solve", "transf_constraints",
+           "matrix_sqrt"]
 
 
 def logdet_symm(m, check_symm=False):
@@ -102,7 +103,6 @@ def transf_constraints(constraints):
     --------
     statsmodels.base._constraints.TransformRestriction : class to impose
         constraints by reparameterization used by `_fit_constrained`.
-
     """
 
     from scipy import linalg
@@ -149,7 +149,6 @@ def matrix_sqrt(mat, inverse=False, full=False, nullspace=False,
     -------
     msqrt : ndarray
         matrix square root or square root of inverse matrix.
-
     """
     # see also scipy.linalg null_space
     u, s, v = np.linalg.svd(mat)

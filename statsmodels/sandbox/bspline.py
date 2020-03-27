@@ -15,7 +15,6 @@ General references:
     Numerische Mathematik, 47(1), 99-106.
 '''
 
-from statsmodels.compat.python import range
 import numpy as np
 import numpy.linalg as L
 
@@ -43,7 +42,6 @@ def _band2array(a, lower=0, symmetric=False, hermitian=False):
        symmetric -- if True, return the original result plus its transpose
        hermitian -- if True (and symmetric False), return the original
                     result plus its conjugate transposed
-
     """
 
     n = a.shape[1]
@@ -126,7 +124,6 @@ def _triangle2unit(tb, lower=0):
                 banded and its rows of have been divided by d,
                 else lower is True, b is lower triangular banded
                 and its columns have been divieed by d.
-
     """
 
     if lower:
@@ -153,7 +150,6 @@ def _trace_symbanded(a, b, lower=0):
 
     OUTPUTS: trace
        trace   -- trace(ab)
-
     """
 
     if lower:
@@ -171,7 +167,6 @@ def _zero_triband(a, lower=0):
     INPUTS:
        a   -- a real symmetric banded matrix (either upper or lower hald)
        lower   -- if True, a is assumed to be the lower half
-
     """
 
     nrow, ncol = a.shape
@@ -268,7 +263,6 @@ class BSpline(object):
         BUGS:
            If self has no attribute x, an exception will be raised
            because self has no attribute _basisx.
-
         """
 
         if not args:
@@ -291,7 +285,6 @@ class BSpline(object):
         OUTPUTS: y
            y  -- value of d-th derivative of the i-th basis element
                  of the BSpline at specified x values
-
         """
 
         x = np.asarray(x, np.float64)
@@ -328,7 +321,6 @@ class BSpline(object):
         OUTPUTS: y
            y  -- value of d-th derivative of the basis elements
                  of the BSpline at specified x values
-
         """
         x = np.asarray(x)
         _shape = x.shape
@@ -391,7 +383,6 @@ class BSpline(object):
         OUTPUTS: gram
            gram -- the matrix of inner products of (derivatives)
                    of the BSpline elements
-
         """
 
         d = np.squeeze(d)
@@ -470,7 +461,7 @@ class SmoothingSpline(BSpline):
         else:
             bt = self.basis(x)
 
-        if pen == 0.: # can't use cholesky for singular matrices
+        if pen == 0.: # cannot use cholesky for singular matrices
             banded = False
 
         if x.shape != y.shape:
@@ -568,7 +559,6 @@ class SmoothingSpline(BSpline):
         How many degrees of freedom used in the fit?
 
         self.trace()
-
         """
         return self.trace()
 
@@ -588,7 +578,6 @@ class SmoothingSpline(BSpline):
 
     def fit_target_df(self, y, x=None, df=None, weights=None, tol=1.0e-03,
                       apen=0, bpen=1.0e-03):
-
         """
         Fit smoothing spline with approximately df degrees of freedom
         used in the fit, i.e. so that self.trace() is approximately df.
@@ -611,7 +600,6 @@ class SmoothingSpline(BSpline):
         OUTPUTS: None
            The smoothing spline is determined by self.coef,
            subsequent calls of __call__ will be the smoothing spline.
-
         """
 
         df = df or self.target_df
@@ -665,7 +653,6 @@ class SmoothingSpline(BSpline):
         OUTPUTS: None
            The smoothing spline is determined by self.coef,
            subsequent calls of __call__ will be the smoothing spline.
-
         """
 
         def _gcv(pen, y, x):

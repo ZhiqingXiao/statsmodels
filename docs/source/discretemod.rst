@@ -24,6 +24,7 @@ Examples
   :okwarning:
 
   # Load the data from Spector and Mazzeo (1980)
+  import statsmodels.api as sm
   spector_data = sm.datasets.spector.load_pandas()
   spector_data.exog = sm.add_constant(spector_data.exog)
 
@@ -82,6 +83,7 @@ The specific model classes are:
    NegativeBinomialP
    GeneralizedPoisson
 
+.. currentmodule:: statsmodels.discrete.count_model
 .. module:: statsmodels.discrete.count_model
 
 .. autosummary::
@@ -91,6 +93,7 @@ The specific model classes are:
    ZeroInflatedNegativeBinomialP
    ZeroInflatedGeneralizedPoisson
 
+.. currentmodule:: statsmodels.discrete.conditional_models
 .. module:: statsmodels.discrete.conditional_models
 
 .. autosummary::

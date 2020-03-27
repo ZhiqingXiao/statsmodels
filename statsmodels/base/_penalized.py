@@ -28,7 +28,6 @@ class PenalizedMixin(object):
 
     TODO: do we adjust the inherited docstrings?
     We would need templating to add the penalization parameters
-
     """
 
     def __init__(self, *args, **kwds):
@@ -68,7 +67,7 @@ class PenalizedMixin(object):
 
     def loglike(self, params, pen_weight=None, **kwds):
         """
-        Log-likelihodo of model at params
+        Log-likelihood of model at params
         """
         if pen_weight is None:
             pen_weight = self.pen_weight
@@ -98,7 +97,6 @@ class PenalizedMixin(object):
 
     def score_numdiff(self, params, pen_weight=None, method='fd', **kwds):
         """score based on finite difference derivative
-
         """
         if pen_weight is None:
             pen_weight = self.pen_weight
@@ -143,7 +141,6 @@ class PenalizedMixin(object):
 
     def hessian_numdiff(self, params, pen_weight=None, **kwds):
         """hessian based on finite difference derivative
-
         """
         if pen_weight is None:
             pen_weight = self.pen_weight
@@ -177,7 +174,7 @@ class PenalizedMixin(object):
         ----------
         method : None or str
             Method specifies the scipy optimizer as in nonlinear MLE models.
-        trim : Boolean or float
+        trim : {bool, float}
             Default is False or None, which uses no trimming.
             If trim is True or a float, then small parameters are set to zero.
             If True, then a default threshold is used. If trim is a float, then
@@ -189,7 +186,6 @@ class PenalizedMixin(object):
             fit method of the underlying model class.
             Specifically, additional optimizer keywords and cov_type related
             keywords can be added.
-
         """
         # If method is None, then we choose a default method ourselves
 

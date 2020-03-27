@@ -16,9 +16,8 @@ Hamilton, James D. 1994.
 Time Series Analysis.
 Princeton, N.J.: Princeton University Press.
 """
-from statsmodels.compat import cPickle
-
 import copy
+import pickle
 
 import numpy as np
 import pandas as pd
@@ -27,6 +26,8 @@ import pytest
 
 from scipy.linalg.blas import find_best_blas_type
 from scipy.linalg import solve_discrete_lyapunov
+from statsmodels.tsa.statespace.kalman_filter import (
+    MEMORY_NO_FORECAST, MEMORY_NO_PREDICTED, MEMORY_CONSERVE)
 from statsmodels.tsa.statespace.mlemodel import MLEModel
 from statsmodels.tsa.statespace import _representation, _kalman_filter
 from .results import results_kalman_filter
@@ -181,7 +182,7 @@ class Clark1987(object):
         )
 
     def test_pickled_filter(self):
-        pickled = cPickle.loads(cPickle.dumps(self.filter))
+        pickled = pickle.loads(pickle.dumps(self.filter))
         #  Run the filters
         self.filter()
         pickled()
@@ -317,7 +318,8 @@ class TestClark1987Conserve(Clark1987):
     @classmethod
     def setup_class(cls):
         super(TestClark1987Conserve, cls).setup_class(
-            dtype=float, conserve_memory=0x01 | 0x02
+            dtype=float,
+            conserve_memory=MEMORY_NO_FORECAST | MEMORY_NO_PREDICTED
         )
         cls.model, cls.filter = cls.init_filter()
         cls.result = cls.run_filter()
@@ -387,7 +389,8 @@ class TestClark1987ForecastConserve(Clark1987Forecast):
     @classmethod
     def setup_class(cls):
         super(TestClark1987ForecastConserve, cls).setup_class(
-            dtype=float, conserve_memory=0x01 | 0x02
+            dtype=float,
+            conserve_memory=MEMORY_NO_FORECAST | MEMORY_NO_PREDICTED
         )
         cls.model, cls.filter = cls.init_filter()
         cls.result = cls.run_filter()
@@ -401,7 +404,7 @@ class TestClark1987ConserveAll(Clark1987):
     @classmethod
     def setup_class(cls):
         super(TestClark1987ConserveAll, cls).setup_class(
-            dtype=float, conserve_memory=0x01 | 0x02 | 0x04 | 0x08
+            dtype=float, conserve_memory=MEMORY_CONSERVE
         )
         cls.loglikelihood_burn = cls.true['start']
         cls.model, cls.filter = cls.init_filter()
@@ -597,7 +600,8 @@ class TestClark1989Conserve(Clark1989):
     @classmethod
     def setup_class(cls):
         super(TestClark1989Conserve, cls).setup_class(
-            dtype=float, conserve_memory=0x01 | 0x02
+            dtype=float,
+            conserve_memory=MEMORY_NO_FORECAST | MEMORY_NO_PREDICTED
         )
         cls.model, cls.filter = cls.init_filter()
         cls.result = cls.run_filter()
@@ -678,7 +682,8 @@ class TestClark1989ForecastConserve(Clark1989Forecast):
     @classmethod
     def setup_class(cls):
         super(TestClark1989ForecastConserve, cls).setup_class(
-            dtype=float, conserve_memory=0x01 | 0x02
+            dtype=float,
+            conserve_memory=MEMORY_NO_FORECAST | MEMORY_NO_PREDICTED
         )
         cls.model, cls.filter = cls.init_filter()
         cls.result = cls.run_filter()
@@ -692,7 +697,7 @@ class TestClark1989ConserveAll(Clark1989):
     @classmethod
     def setup_class(cls):
         super(TestClark1989ConserveAll, cls).setup_class(
-            dtype=float, conserve_memory=0x01 | 0x02 | 0x04 | 0x08,
+            dtype=float, conserve_memory=MEMORY_CONSERVE,
         )
         # cls.loglikelihood_burn = cls.true['start']
         cls.loglikelihood_burn = 0

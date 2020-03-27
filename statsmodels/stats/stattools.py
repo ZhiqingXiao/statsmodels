@@ -3,7 +3,7 @@ Statistical tests to be used in conjunction with the models
 
 Notes
 -----
-These functions haven't been formally tested.
+These functions have not been formally tested.
 """
 
 from scipy import stats
@@ -76,30 +76,30 @@ def omni_normtest(resids, axis=0):
 
 def jarque_bera(resids, axis=0):
     r"""
-    Calculates the Jarque-Bera test for normality
+    The Jarque-Bera test of normality.
 
     Parameters
     ----------
-    data : array_like
-        Data to test for normality
+    resids : array_like
+        Data to test for normality. Usually regression model residuals that
+        are mean 0.
     axis : int, optional
-        Axis to use if data has more than 1 dimension. Default is 0
+        Axis to use if data has more than 1 dimension. Default is 0.
 
     Returns
     -------
-    JB : float or array
-        The Jarque-Bera test statistic
-    JBpv : float or array
-        The pvalue of the test statistic
-    skew : float or array
-        Estimated skewness of the data
-    kurtosis : float or array
-        Estimated kurtosis of the data
+    JB : {float, ndarray}
+        The Jarque-Bera test statistic.
+    JBpv : {float, ndarray}
+        The pvalue of the test statistic.
+    skew : {float, ndarray}
+        Estimated skewness of the data.
+    kurtosis : {float, ndarray}
+        Estimated kurtosis of the data.
 
     Notes
     -----
     Each output returned has 1 dimension fewer than data
-
 
     The Jarque-Bera test statistic tests the null that the data is normally
     distributed against an alternative that the data follow some other
@@ -134,7 +134,7 @@ def robust_skewness(y, axis=0):
     Parameters
     ----------
     y : array_like
-
+        Data to compute use in the estimator.
     axis : int or None, optional
         Axis along which the skewness measures are computed.  If `None`, the
         entire array is used.
@@ -193,7 +193,7 @@ def robust_skewness(y, axis=0):
     mu_b = np.reshape(mu, shape)
     q2_b = np.reshape(q2, shape)
 
-    sigma = np.mean(((y - mu_b)**2), axis)
+    sigma = np.sqrt(np.mean(((y - mu_b)**2), axis))
 
     sk1 = stats.skew(y, axis=axis)
     sk2 = (q1 + q3 - 2.0 * q2) / (q3 - q1)
@@ -210,6 +210,7 @@ def _kr3(y, alpha=5.0, beta=50.0):
     Parameters
     ----------
     y : array_like, 1-d
+        Data to compute use in the estimator.
     alpha : float, optional
         Lower cut-off for measuring expectation in tail.
     beta :  float, optional
@@ -245,18 +246,18 @@ def expected_robust_kurtosis(ab=(5.0, 50.0), dg=(2.5, 25.0)):
 
     Parameters
     ----------
-    ab: iterable, optional
+    ab : iterable, optional
         Contains 100*(alpha, beta) in the kr3 measure where alpha is the tail
         quantile cut-off for measuring the extreme tail and beta is the central
         quantile cutoff for the standardization of the measure
-    db: iterable, optional
+    db : iterable, optional
         Contains 100*(delta, gamma) in the kr4 measure where delta is the tail
         quantile for measuring extreme values and gamma is the central quantile
         used in the the standardization of the measure
 
     Returns
     -------
-    ekr: array, 4-element
+    ekr : ndarray, 4-element
         Contains the expected values of the 4 robust kurtosis measures
 
     Notes
@@ -290,14 +291,15 @@ def robust_kurtosis(y, axis=0, ab=(5.0, 50.0), dg=(2.5, 25.0), excess=True):
     Parameters
     ----------
     y : array_like
+        Data to compute use in the estimator.
     axis : int or None, optional
-        Axis along which the kurtoses are computed.  If `None`, the
+        Axis along which the kurtosis are computed.  If `None`, the
         entire array is used.
-    ab: iterable, optional
+    a iterable, optional
         Contains 100*(alpha, beta) in the kr3 measure where alpha is the tail
         quantile cut-off for measuring the extreme tail and beta is the central
         quantile cutoff for the standardization of the measure
-    db: iterable, optional
+    db : iterable, optional
         Contains 100*(delta, gamma) in the kr4 measure where delta is the tail
         quantile for measuring extreme values and gamma is the central quantile
         used in the the standardization of the measure
@@ -312,7 +314,7 @@ def robust_kurtosis(y, axis=0, ab=(5.0, 50.0), dg=(2.5, 25.0), excess=True):
     kr2 : ndarray
           Kurtosis estimator based on octiles.
     kr3 : ndarray
-          Kurtosis estimators based on exceedence expectations.
+          Kurtosis estimators based on exceedance expectations.
     kr4 : ndarray
           Kurtosis measure based on the spread between high and low quantiles.
 
@@ -378,6 +380,7 @@ def _medcouple_1d(y):
     Parameters
     ----------
     y : array_like, 1-d
+        Data to compute use in the estimator.
 
     Returns
     -------
@@ -434,12 +437,13 @@ def _medcouple_1d(y):
 
 def medcouple(y, axis=0):
     """
-    Calculates the medcouple robust measure of skew.
+    Calculate the medcouple robust measure of skew.
 
     Parameters
     ----------
     y : array_like
-    axis : int or None, optional
+        Data to compute use in the estimator.
+    axis : {int, None}
         Axis along which the medcouple statistic is computed.  If `None`, the
         entire array is used.
 

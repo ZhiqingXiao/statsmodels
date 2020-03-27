@@ -1,7 +1,6 @@
-from statsmodels.compat.python import range
 import numpy as np
 
-#TODO: add plots to weighting functions for online docs.
+# TODO: add plots to weighting functions for online docs.
 
 
 class RobustNorm(object):
@@ -11,10 +10,13 @@ class RobustNorm(object):
     Lays out the methods expected of the robust norms to be used
     by statsmodels.RLM.
 
-    Parameters
-    ----------
-    None :
-        Some subclasses have optional tuning constants.
+    See Also
+    --------
+    statsmodels.rlm
+
+    Notes
+    -----
+    Currently only M-estimators are available.
 
     References
     ----------
@@ -25,14 +27,6 @@ class RobustNorm(object):
 
     R Venables, B Ripley. 'Modern Applied Statistics in S'
         Springer, New York, 2002.
-
-    See Also
-    --------
-    statsmodels.rlm
-
-    Notes
-    -----
-    Currently only M-estimators are available.
     """
 
     def rho(self, z):
@@ -67,7 +61,7 @@ class RobustNorm(object):
 
     def psi_deriv(self, z):
         """
-        Deriative of psi.  Used to obtain robust covariance matrix.
+        Derivative of psi.  Used to obtain robust covariance matrix.
 
         See statsmodels.rlm for more information.
 
@@ -85,7 +79,6 @@ class RobustNorm(object):
 
 
 class LeastSquares(RobustNorm):
-
     """
     Least squares rho for M-estimation and its derived functions.
 
@@ -100,12 +93,12 @@ class LeastSquares(RobustNorm):
 
         Parameters
         ----------
-        z : array
+        z : ndarray
             1d array
 
         Returns
         -------
-        rho : array
+        rho : ndarray
             rho(z) = (1/2.)*z**2
         """
 
@@ -124,7 +117,7 @@ class LeastSquares(RobustNorm):
 
         Returns
         -------
-        psi : array
+        psi : ndarray
             psi(z) = z
         """
 
@@ -143,7 +136,7 @@ class LeastSquares(RobustNorm):
 
         Returns
         -------
-        weights : array
+        weights : ndarray
             weights(z) = np.ones(z.shape)
         """
 
@@ -156,7 +149,7 @@ class LeastSquares(RobustNorm):
 
         Returns
         -------
-        psi_deriv : array
+        psi_deriv : ndarray
             ones(z.shape)
 
         Notes
@@ -202,7 +195,7 @@ class HuberT(RobustNorm):
 
         Returns
         -------
-        rho : array
+        rho : ndarray
             rho(z) = .5*z**2            for \|z\| <= t
 
             rho(z) = \|z\|*t - .5*t**2    for \|z\| > t
@@ -225,7 +218,7 @@ class HuberT(RobustNorm):
 
         Returns
         -------
-        psi : array
+        psi : ndarray
             psi(z) = z      for \|z\| <= t
 
             psi(z) = sign(z)*t for \|z\| > t
@@ -247,7 +240,7 @@ class HuberT(RobustNorm):
 
         Returns
         -------
-        weights : array
+        weights : ndarray
             weights(z) = 1          for \|z\| <= t
 
             weights(z) = t/\|z\|      for \|z\| > t
@@ -285,7 +278,7 @@ class RamsayE(RobustNorm):
     statsmodels.robust.norms.RobustNorm
     """
 
-    def __init__(self, a = .3):
+    def __init__(self, a=.3):
         self.a = a
 
     def rho(self, z):
@@ -299,7 +292,7 @@ class RamsayE(RobustNorm):
 
         Returns
         -------
-        rho : array
+        rho : ndarray
             rho(z) = a**-2 * (1 - exp(-a*\|z\|)*(1 + a*\|z\|))
         """
         z = np.asarray(z)
@@ -319,7 +312,7 @@ class RamsayE(RobustNorm):
 
         Returns
         -------
-        psi : array
+        psi : ndarray
             psi(z) = z*exp(-a*\|z\|)
         """
         z = np.asarray(z)
@@ -338,7 +331,7 @@ class RamsayE(RobustNorm):
 
         Returns
         -------
-        weights : array
+        weights : ndarray
             weights(z) = exp(-a*\|z\|)
         """
 
@@ -362,7 +355,6 @@ class RamsayE(RobustNorm):
 
 
 class AndrewWave(RobustNorm):
-
     """
     Andrew's wave for M estimation.
 
@@ -397,7 +389,7 @@ class AndrewWave(RobustNorm):
 
         Returns
         -------
-        rho : array
+        rho : ndarray
             rho(z) = a*(1-cos(z/a))     for \|z\| <= a*pi
 
             rho(z) = 2*a                for \|z\| > a*pi
@@ -422,7 +414,7 @@ class AndrewWave(RobustNorm):
 
         Returns
         -------
-        psi : array
+        psi : ndarray
             psi(z) = sin(z/a)       for \|z\| <= a*pi
 
             psi(z) = 0              for \|z\| > a*pi
@@ -446,7 +438,7 @@ class AndrewWave(RobustNorm):
 
         Returns
         -------
-        weights : array
+        weights : ndarray
             weights(z) = sin(z/a)/(z/a)     for \|z\| <= a*pi
 
             weights(z) = 0                  for \|z\| > a*pi
@@ -516,7 +508,7 @@ class TrimmedMean(RobustNorm):
 
         Returns
         -------
-        rho : array
+        rho : ndarray
             rho(z) = (1/2.)*z**2    for \|z\| <= c
 
             rho(z) = 0              for \|z\| > c
@@ -539,11 +531,10 @@ class TrimmedMean(RobustNorm):
 
         Returns
         -------
-        psi : array
+        psi : ndarray
             psi(z) = z              for \|z\| <= c
 
             psi(z) = 0              for \|z\| > c
-
         """
         z = np.asarray(z)
         test = self._subset(z)
@@ -562,11 +553,10 @@ class TrimmedMean(RobustNorm):
 
         Returns
         -------
-        weights : array
+        weights : ndarray
             weights(z) = 1             for \|z\| <= c
 
             weights(z) = 0             for \|z\| > c
-
         """
         z = np.asarray(z)
         test = self._subset(z)
@@ -628,7 +618,7 @@ class Hampel(RobustNorm):
 
         Returns
         -------
-        rho : array
+        rho : ndarray
             rho(z) = (1/2.)*z**2                    for \|z\| <= a
 
             rho(z) = a*\|z\| - 1/2.*a**2              for a < \|z\| <= b
@@ -662,7 +652,7 @@ class Hampel(RobustNorm):
 
         Returns
         -------
-        psi : array
+        psi : ndarray
             psi(z) = z                            for \|z\| <= a
 
             psi(z) = a*sign(z)                    for a < \|z\| <= b
@@ -696,7 +686,7 @@ class Hampel(RobustNorm):
 
         Returns
         -------
-        weights : array
+        weights : ndarray
             weights(z) = 1                            for \|z\| <= a
 
             weights(z) = a/\|z\|                        for a < \|z\| <= b
@@ -704,7 +694,6 @@ class Hampel(RobustNorm):
             weights(z) = a*(c - \|z\|)/(\|z\|*(c-b))      for b < \|z\| <= c
 
             weights(z) = 0                            for \|z\| > c
-
         """
         z = np.asarray(z)
         a = self.a
@@ -718,7 +707,7 @@ class Hampel(RobustNorm):
         v[t2] = a / abs_z[t2]
         abs_zt3 = abs_z[t3]
         v[t3] = a * (c - abs_zt3) / (abs_zt3 * (c - b))
-        v[np.where(np.isnan(v))] = 1.  # for some reason 0 returns a nan?
+        v[np.where(np.isnan(v))] = 1.  # TODO: for some reason 0 returns a nan?
         return v
 
     def psi_deriv(self, z):
@@ -748,7 +737,7 @@ class TukeyBiweight(RobustNorm):
     Tukey's biweight is sometime's called bisquare.
     """
 
-    def __init__(self, c = 4.685):
+    def __init__(self, c=4.685):
         self.c = c
 
     def _subset(self, z):
@@ -769,7 +758,7 @@ class TukeyBiweight(RobustNorm):
 
         Returns
         -------
-        rho : array
+        rho : ndarray
             rho(z) = -(1 - (z/c)**2)**3 * c**2/6.   for \|z\| <= R
 
             rho(z) = 0                              for \|z\| > R
@@ -790,7 +779,7 @@ class TukeyBiweight(RobustNorm):
 
         Returns
         -------
-        psi : array
+        psi : ndarray
             psi(z) = z*(1 - (z/c)**2)**2        for \|z\| <= R
 
             psi(z) = 0                           for \|z\| > R
@@ -813,7 +802,7 @@ class TukeyBiweight(RobustNorm):
 
         Returns
         -------
-        weights : array
+        weights : ndarray
             psi(z) = (1 - (z/c)**2)**2          for \|z\| <= R
 
             psi(z) = 0                          for \|z\| > R
@@ -831,8 +820,9 @@ class TukeyBiweight(RobustNorm):
         Used to estimate the robust covariance matrix.
         """
         subset = self._subset(z)
-        return subset*((1 - (z/self.c)**2)**2 - (4*z**2/self.c**2) *\
-                    (1-(z/self.c)**2))
+        return subset * ((1 - (z/self.c)**2)**2
+                         - (4*z**2/self.c**2) * (1-(z/self.c)**2))
+
 
 def estimate_location(a, scale, norm=None, axis=0, initial=None,
                       maxiter=30, tol=1.0e-06):
@@ -846,15 +836,15 @@ def estimate_location(a, scale, norm=None, axis=0, initial=None,
 
     Parameters
     ----------
-    a : array
+    a : ndarray
         Array over which the location parameter is to be estimated
-    scale : array
+    scale : ndarray
         Scale parameter to be used in M-estimator
     norm : RobustNorm, optional
         Robust norm used in the M-estimator.  The default is HuberT().
     axis : int, optional
         Axis along which to estimate the location parameter.  The default is 0.
-    initial : array, optional
+    initial : ndarray, optional
         Initial condition for the location parameter.  Default is None, which
         uses the median of a.
     niter : int, optional
@@ -864,7 +854,7 @@ def estimate_location(a, scale, norm=None, axis=0, initial=None,
 
     Returns
     -------
-    mu : array
+    mu : ndarray
         Estimate of location
     """
     if norm is None:

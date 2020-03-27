@@ -1,4 +1,4 @@
-from statsmodels.compat.python import lrange, range
+from statsmodels.compat.python import lrange
 import numpy as np
 import statsmodels.tsa.vector_ar.util as util
 
@@ -96,7 +96,6 @@ def plot_with_error(y, error, x=None, axes=None, value_fmt='k',
     ----------
     y :
     error : array or None
-
     """
     import matplotlib.pyplot as plt
 
@@ -124,9 +123,6 @@ def plot_full_acorr(acorr, fontsize=8, linewidth=8, xlabel=None,
 
     Parameters
     ----------
-
-
-
     """
     import matplotlib.pyplot as plt
 

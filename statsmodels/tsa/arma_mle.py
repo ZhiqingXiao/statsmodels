@@ -8,7 +8,6 @@ TODO: check everywhere initialization of signal.lfilter
 
 """
 
-from statsmodels.compat.python import range
 import numpy as np
 from scipy import signal, optimize
 from statsmodels.base.model import GenericLikelihoodModel
@@ -42,7 +41,6 @@ class Arma(GenericLikelihoodModel):  #switch to generic mle
     - still needs consistent order options.
     - Currently assumes that the mean is zero, no mean or effect of exogenous
       variables are included in the estimation.
-
     """
 
     def __init__(self, endog, exog=None):
@@ -93,7 +91,7 @@ class Arma(GenericLikelihoodModel):  #switch to generic mle
         sigma2 = np.maximum(params[-1]**2, 1e-6)
         axis = 0
         nobs = len(errorsest)
-        #this doesn't help for exploding paths
+        #this does not help for exploding paths
         #errorsest[np.isnan(errorsest)] = 100
 #        llike  =  -0.5 * (np.sum(np.log(sigma2),axis)
 #                          + np.sum((errorsest**2)/sigma2, axis)
@@ -123,7 +121,7 @@ class Arma(GenericLikelihoodModel):  #switch to generic mle
         sigma2 = np.maximum(params[-1]**2, 1e-6)
         axis = 0
         nobs = len(errorsest)
-        #this doesn't help for exploding paths
+        #this does not help for exploding paths
         #errorsest[np.isnan(errorsest)] = 100
 #        llike  =  -0.5 * (np.sum(np.log(sigma2),axis)
 #                          + np.sum((errorsest**2)/sigma2, axis)
@@ -224,7 +222,7 @@ class Arma(GenericLikelihoodModel):  #switch to generic mle
         elif method == "ssm":
             pass
         else:  #this is also conditional least squares
-            # fmin_bfgs is slow or doesn't work yet
+            # fmin_bfgs is slow or does not work yet
             errfnsum = lambda rho : np.sum(self.geterrors(rho)**2)
             #xopt, {fopt, gopt, Hopt, func_calls, grad_calls
             optim_kwds = dict(maxiter=2, full_output=True)
@@ -271,7 +269,7 @@ class Arma(GenericLikelihoodModel):  #switch to generic mle
             start_params = np.concatenate((0.05*np.ones(nar + nma), [1]))
         mlefit = super(Arma, self).fit(start_params=start_params,
                 maxiter=maxiter, method=method, tol=tol, **kwds)
-        #bug fix: running ls and then mle didn't overwrite this
+        #bug fix: running ls and then mle did not overwrite this
         rh = mlefit.params
         self.params = rh
         self.ar_est = np.concatenate(([1], -rh[:p]))

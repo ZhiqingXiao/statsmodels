@@ -32,11 +32,11 @@ Golan, A., Judge, G., and Miller, D.  1996.  Maximum Entropy Econometrics.
 #bias and variance. Technical Report 2003/131 School of Computer Science and Software Engineer-
 #ing, Monash University.
 
-from statsmodels.compat.python import range, lzip, lmap
+from statsmodels.compat.python import lzip, lmap
 from scipy import stats
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.misc import logsumexp as sp_logsumexp
+from scipy.special import logsumexp as sp_logsumexp
 
 #TODO: change these to use maxentutils so that over/underflow is handled
 #with the logsumexp.
@@ -96,7 +96,7 @@ def discretize(X, method="ef", nbins=None):
     ----------
     bins : int, optional
         Number of bins.  Default is floor(sqrt(N))
-    method : string
+    method : str
         "ef" is equal-frequency binning
         "ew" is equal-width binning
 
@@ -179,7 +179,7 @@ def shannonentropy(px, logbase=2):
     -----
     shannonentropy(0) is defined as 0
     """
-#TODO: haven't defined the px,py case?
+#TODO: have not defined the px,py case?
     px = np.asarray(px)
     if not np.all(px <= 1) or not np.all(px >= 0):
         raise ValueError("px does not define proper distribution")
@@ -430,7 +430,6 @@ def gencrossentropy(px,py,pxpy,alpha=1,logbase=2, measure='T'):
         The measure is the type of generalized cross-entropy desired. 'T' is
         the cross-entropy version of the Tsallis measure.  'CR' is Cressie-Read
         measure.
-
     """
 
 

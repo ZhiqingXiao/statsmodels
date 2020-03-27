@@ -79,7 +79,7 @@ class TestDiff(object):
             x = tools.diff(series, diff, seasonal_diff, seasonal_periods)
             assert_almost_equal(x, result)
 
-            # Test as Pandas Dataframe
+            # Test as Pandas DataFrame
             series = pd.DataFrame(series)
             x = tools.diff(series, diff, seasonal_diff, seasonal_periods)
             assert_almost_equal(x, result)
@@ -225,7 +225,7 @@ class TestUnconstrainStationaryUnivariate(object):
 
 
 class TestStationaryUnivariate(object):
-    # Test that the constraint and unconstraint functions are inverses
+    # Test that the constraint and unconstrained functions are inverses
 
     constrained_cases = [
         np.array([0]), np.array([0.1]), np.array([-0.5]), np.array([0.999])]
@@ -423,7 +423,7 @@ class TestUnconstrainStationaryMultivariate(object):
 
 
 class TestStationaryMultivariate(object):
-    # Test that the constraint and unconstraint functions are inverses
+    # Test that the constraint and unconstrained functions are inverses
 
     constrained_cases = [
         np.array([[0]]), np.array([[0.1]]),

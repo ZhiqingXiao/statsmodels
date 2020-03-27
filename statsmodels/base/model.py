@@ -1,4 +1,7 @@
-from statsmodels.compat.python import lzip, range, reduce
+from statsmodels.compat.python import lzip
+
+from functools import reduce
+
 import numpy as np
 from scipy import stats
 from statsmodels.base.data import handle_data
@@ -16,11 +19,10 @@ from statsmodels.formula import handle_formula_data
 from statsmodels.base.optimizer import Optimizer
 
 
-_model_params_doc = """
-    Parameters
+_model_params_doc = """Parameters
     ----------
     endog : array_like
-        1-d endogenous response variable. The dependent variable.
+        A 1-d endogenous response variable. The dependent variable.
     exog : array_like
         A nobs x k array where `nobs` is the number of observations and `k`
         is the number of regressors. An intercept is not included by default
@@ -31,14 +33,16 @@ _missing_param_doc = """\
 missing : str
         Available options are 'none', 'drop', and 'raise'. If 'none', no nan
         checking is done. If 'drop', any observations with nans are dropped.
-        If 'raise', an error is raised. Default is 'none.'"""
+        If 'raise', an error is raised. Default is 'none'."""
 _extra_param_doc = """
     hasconst : None or bool
         Indicates whether the RHS includes a user-supplied constant. If True,
         a constant is not checked for and k_constant is set to 1 and all
         result statistics are calculated as if a constant is present. If
         False, a constant is not checked for and k_constant is set to 0.
-"""
+    **kwargs
+        Extra arguments that are used to set model properties when using the
+        formula interface."""
 
 
 class Model(object):
@@ -61,6 +65,11 @@ class Model(object):
     """ % {'params_doc': _model_params_doc,
            'extra_params_doc': _missing_param_doc + _extra_param_doc}
 
+    # Maximum number of endogenous variables when using a formula
+    # Default is 1, which is more common. Override in models when needed
+    # Set to None to skip check
+    _formula_max_endog = 1
+
     def __init__(self, endog, exog=None, **kwargs):
         missing = kwargs.pop('missing', 'none')
         hasconst = kwargs.pop('hasconst', None)
@@ -71,10 +80,10 @@ class Model(object):
         self.endog = self.data.endog
         self._data_attr = []
         self._data_attr.extend(['exog', 'endog', 'data.exog', 'data.endog'])
-        if 'formula' not in kwargs:  # won't be able to unpickle without these
+        if 'formula' not in kwargs:  # will not be able to unpickle without these
             self._data_attr.extend(['data.orig_endog', 'data.orig_exog'])
         # store keys for extras if we need to recreate model instance
-        # we don't need 'missing', maybe we need 'hasconst'
+        # we do not need 'missing', maybe we need 'hasconst'
         self._init_keys = list(kwargs.keys())
         if hasconst is not None:
             self._init_keys.append('hasconst')
@@ -93,7 +102,7 @@ class Model(object):
         for key in kwargs:
             if key in ['design_info', 'formula']:  # leave attached to data
                 continue
-            # pop so we don't start keeping all these twice or references
+            # pop so we do not start keeping all these twice or references
             try:
                 setattr(self, key, data.__dict__.pop(key))
             except KeyError:  # panel already pops keys in data handling
@@ -109,19 +118,19 @@ class Model(object):
         Parameters
         ----------
         formula : str or generic Formula object
-            The formula specifying the model
+            The formula specifying the model.
         data : array_like
             The data for the model. See Notes.
         subset : array_like
             An array-like object of booleans, integers, or index values that
             indicate the subset of df to use in the model. Assumes df is a
-            `pandas.DataFrame`
+            `pandas.DataFrame`.
         drop_cols : array_like
             Columns to drop from the design matrix.  Cannot be used to
             drop terms involving categoricals.
-        args : extra arguments
-            These are passed to the model
-        kwargs : extra keyword arguments
+        *args
+            Additional positional argument that are passed to the model.
+        **kwargs
             These are passed to the model with one exception. The
             ``eval_env`` keyword is passed to patsy. It can be either a
             :class:`patsy:patsy.EvalEnvironment` object or an integer
@@ -131,7 +140,8 @@ class Model(object):
 
         Returns
         -------
-        model : Model instance
+        model
+            The model instance.
 
         Notes
         -----
@@ -149,7 +159,7 @@ class Model(object):
         elif eval_env == -1:
             from patsy import EvalEnvironment
             eval_env = EvalEnvironment({})
-        else:
+        elif isinstance(eval_env, int):
             eval_env += 1  # we're going down the stack again
         missing = kwargs.get('missing', 'drop')
         if missing == 'none':  # with patsy it's drop or raise. let's raise.
@@ -158,7 +168,13 @@ class Model(object):
         tmp = handle_formula_data(data, None, formula, depth=eval_env,
                                   missing=missing)
         ((endog, exog), missing_idx, design_info) = tmp
-
+        max_endog = cls._formula_max_endog
+        if (max_endog is not None and
+                endog.ndim > 1 and endog.shape[1] > max_endog):
+            raise ValueError('endog has evaluated to an array with multiple '
+                             'columns that has shape {0}. This occurs when '
+                             'the variable converted to endog is non-numeric'
+                             ' (e.g., bool or str).'.format(endog.shape))
         if drop_cols is not None and len(drop_cols) > 0:
             cols = [x for x in exog.columns if x not in drop_cols]
             if len(cols) < len(exog.columns):
@@ -184,12 +200,16 @@ class Model(object):
 
     @property
     def endog_names(self):
-        """Names of endogenous variables"""
+        """
+        Names of endogenous variables.
+        """
         return self.data.ynames
 
     @property
     def exog_names(self):
-        """Names of exogenous variables"""
+        """
+        Names of exogenous variables.
+        """
         return self.data.xnames
 
     def fit(self):
@@ -218,9 +238,11 @@ class LikelihoodModel(Model):
 
     def initialize(self):
         """
-        Initialize (possibly re-initialize) a Model instance. For
-        instance, the design matrix of a linear model may change
-        and some things must be recomputed.
+        Initialize (possibly re-initialize) a Model instance.
+
+        For example, if the the design matrix of a linear model changes then
+        initialized can be used to recompute values using the modified design
+        matrix.
         """
         pass
 
@@ -230,6 +252,15 @@ class LikelihoodModel(Model):
     def loglike(self, params):
         """
         Log-likelihood of model.
+
+        Parameters
+        ----------
+        params : ndarray
+            The model parameters used to compute the log-likelihood.
+
+        Notes
+        -----
+        Must be overridden by subclasses.
         """
         raise NotImplementedError
 
@@ -238,20 +269,45 @@ class LikelihoodModel(Model):
         Score vector of model.
 
         The gradient of logL with respect to each parameter.
+
+        Parameters
+        ----------
+        params : ndarray
+            The parameters to use when evaluating the Hessian.
+
+        Returns
+        -------
+        ndarray
+            The score vector evaluated at the parameters.
         """
         raise NotImplementedError
 
     def information(self, params):
         """
-        Fisher information matrix of model
+        Fisher information matrix of model.
 
-        Returns -Hessian of loglike evaluated at params.
+        Returns -1 * Hessian of the log-likelihood evaluated at params.
+
+        Parameters
+        ----------
+        params : ndarray
+            The model parameters.
         """
         raise NotImplementedError
 
     def hessian(self, params):
         """
-        The Hessian matrix of the model
+        The Hessian matrix of the model.
+
+        Parameters
+        ----------
+        params : ndarray
+            The parameters to use when evaluating the Hessian.
+
+        Returns
+        -------
+        ndarray
+            The hessian evaluated at the parameters.
         """
         raise NotImplementedError
 
@@ -389,9 +445,9 @@ class LikelihoodModel(Model):
                 start_direc : ndarray
                     Initial direction set.
             'basinhopping'
-                niter : integer
+                niter : int
                     The number of basin hopping iterations.
-                niter_success : integer
+                niter_success : int
                     Stop the run if the global minimum candidate remains the
                     same for this number of iterations.
                 T : float
@@ -402,7 +458,7 @@ class LikelihoodModel(Model):
                     value) between local minima.
                 stepsize : float
                     Initial step size for use in the random displacement.
-                interval : integer
+                interval : int
                     The interval for how often to update the `stepsize`.
                 minimizer : dict
                     Extra keyword arguments to be passed to the minimizer
@@ -434,7 +490,7 @@ class LikelihoodModel(Model):
                                  "be specified")
 
         # TODO: separate args from nonarg taking score and hessian, ie.,
-        # user-supplied and numerically evaluated estimate frprime doesn't take
+        # user-supplied and numerically evaluated estimate frprime does not take
         # args in most (any?) of the optimize function
 
         nobs = self.endog.shape[0]
@@ -547,7 +603,6 @@ class LikelihoodModel(Model):
         Returns
         -------
         results : Results instance
-
         """
         # we need to append index of extra params to keep_index as in
         # NegativeBinomial
@@ -584,8 +639,8 @@ class LikelihoodModel(Model):
         # create dummy results Instance, TODO: wire up properly
         # TODO: this could be moved into separate private method if needed
         # discrete L1 fit_regularized doens't reestimate AFAICS
-        # RLM doesn't have method, disp nor warn_convergence keywords
-        # OLS, WLS swallows extra kwds with **kwargs, but doesn't have method='nm'
+        # RLM does not have method, disp nor warn_convergence keywords
+        # OLS, WLS swallows extra kwds with **kwargs, but does not have method='nm'
         try:
             # Note: addding full_output=False causes exceptions
             res = self.fit(maxiter=0, disp=0, method='nm', skip_hessian=True,
@@ -698,7 +753,7 @@ class GenericLikelihoodModel(LikelihoodModel):
     and a Hessian is 'newton'
 
     If they are not overwritten by a subclass, then numerical gradient,
-    Jacobian and Hessian of the log-likelihood are caclulated by numerical
+    Jacobian and Hessian of the log-likelihood are calculated by numerical
     forward differentiation. This might results in some cases in precision
     problems, and the Hessian might not be positive definite. Even if the
     Hessian is not positive definite the covariance matrix of the parameter
@@ -722,7 +777,6 @@ class GenericLikelihoodModel(LikelihoodModel):
     res = mod.fit(method="nm", maxiter = 500)
     import numpy as np
     np.allclose(res.params, probit_res.params)
-
     """
     def __init__(self, endog, exog=None, loglike=None, score=None,
                  hessian=None, missing='none', extra_params_names=None,
@@ -745,7 +799,7 @@ class GenericLikelihoodModel(LikelihoodModel):
         super(GenericLikelihoodModel, self).__init__(endog, exog,
                                                      missing=missing)
 
-        # this won't work for ru2nmnl, maybe np.ndim of a dict?
+        # this will not work for ru2nmnl, maybe np.ndim of a dict?
         if exog is not None:
             self.nparams = (exog.shape[1] if np.ndim(exog) == 2 else 1)
 
@@ -795,12 +849,12 @@ class GenericLikelihoodModel(LikelihoodModel):
 
         Parameters
         ----------
-        params : array
+        params : ndarray
             reduced parameter array
 
         Returns
         -------
-        paramsfull : array
+        paramsfull : ndarray
             expanded parameter array where fixed parameters are included
 
         Notes
@@ -814,7 +868,6 @@ class GenericLikelihoodModel(LikelihoodModel):
 
         this could also be replaced by a more general parameter
         transformation.
-
         """
         paramsfull = self.fixed_params.copy()
         paramsfull[self.fixed_paramsmask] = params
@@ -890,8 +943,7 @@ class GenericLikelihoodModel(LikelihoodModel):
         """
         Fit the model using maximum likelihood.
 
-        The rest of the docstring is from
-        statsmodels.LikelihoodModel.fit
+        See LikelihoodModel.fit for more information.
         """
         if start_params is None:
             if hasattr(self, 'start_params'):
@@ -914,12 +966,11 @@ class GenericLikelihoodModel(LikelihoodModel):
                 self._set_extra_params_names(['par%d' % i
                                               for i in range(-k_miss)])
             else:
-                # I don't want to raise after we have already fit()
+                # I do not want to raise after we have already fit()
                 import warnings
                 warnings.warn('more exog_names than parameters', ValueWarning)
 
         return genericmlefit
-    # fit.__doc__ += LikelihoodModel.fit.__doc__
 
 
 class Results(object):
@@ -930,7 +981,7 @@ class Results(object):
     ----------
     model : class instance
         the previously specified model instance
-    params : array
+    params : ndarray
         parameter estimates from the fit model
     """
     def __init__(self, model, params, **kwd):
@@ -938,9 +989,18 @@ class Results(object):
         self.initialize(model, params, **kwd)
         self._data_attr = []
 
-    def initialize(self, model, params, **kwd):
+    def initialize(self, model, params, **kwargs):
         """
         Initialize (possibly re-initialize) a Results instance.
+
+        Parameters
+        ----------
+        model : Model
+            The model instance.
+        params : ndarray
+            The model parameters.
+        **kwargs
+            Any additional keyword arguments required to initialize the model.
         """
         self.params = params
         self.model = model
@@ -962,14 +1022,17 @@ class Results(object):
             you can pass a data structure that contains x1 and x2 in
             their original form. Otherwise, you'd need to log the data
             first.
-        args, kwargs :
-            Some models can take additional arguments or keywords, see the
+        *args
+            Additional arguments to pass to the model, see the
+            predict method of the model for the details.
+        **kwargs
+            Additional keywords arguments to pass to the model, see the
             predict method of the model for the details.
 
         Returns
         -------
-        prediction : ndarray, pandas.Series or pandas.DataFrame
-            See self.model.predict
+        array_like
+            See self.model.predict.
 
         Notes
         -----
@@ -988,7 +1051,6 @@ class Results(object):
 
         Row indices as in pandas data frames are supported, and added to the
         returned prediction.
-
         """
         import pandas as pd
 
@@ -1089,7 +1151,7 @@ class LikelihoodModelResults(Results):
         The parameters estimated for the model.
     scale : float
         The scaling factor of the model given during instantiation.
-    tvalues : array
+    tvalues : ndarray
         The t-values of the standard errors.
 
 
@@ -1213,21 +1275,19 @@ class LikelihoodModelResults(Results):
 
     # by default we use normal distribution
     # can be overwritten by instances or subclasses
-    use_t = False
 
     def __init__(self, model, params, normalized_cov_params=None, scale=1.,
                  **kwargs):
         super(LikelihoodModelResults, self).__init__(model, params)
         self.normalized_cov_params = normalized_cov_params
         self.scale = scale
-
+        self._use_t = False
         # robust covariance
         # We put cov_type in kwargs so subclasses can decide in fit whether to
         # use this generic implementation
         if 'use_t' in kwargs:
             use_t = kwargs['use_t']
-            if use_t is not None:
-                self.use_t = use_t
+            self.use_t = use_t if use_t is not None else False
         if 'cov_type' in kwargs:
             cov_type = kwargs.get('cov_type', 'nonrobust')
             cov_kwds = kwargs.get('cov_kwds', {})
@@ -1242,7 +1302,7 @@ class LikelihoodModelResults(Results):
                 if cov_kwds is None:
                     cov_kwds = {}
                 use_t = self.use_t
-                # TODO: we shouldn't need use_t in get_robustcov_results
+                # TODO: we should not need use_t in get_robustcov_results
                 get_robustcov_results(self, cov_type=cov_type, use_self=True,
                                       use_t=use_t, **cov_kwds)
 
@@ -1265,9 +1325,17 @@ class LikelihoodModelResults(Results):
                              'covariance matrix of the errors is correctly ' +
                              'specified.'}
         else:
-            # TODO: we shouldn't need use_t in get_robustcov_results
+            # TODO: we should not need use_t in get_robustcov_results
             get_robustcov_results(self, cov_type=cov_type, use_self=True,
                                   use_t=use_t, **cov_kwds)
+    @property
+    def use_t(self):
+        """Flag indicating to use the Student's distribution in inference."""
+        return self._use_t
+
+    @use_t.setter
+    def use_t(self, value):
+        self._use_t = bool(value)
 
     @cached_value
     def llf(self):
@@ -1305,12 +1373,11 @@ class LikelihoodModelResults(Results):
     def cov_params(self, r_matrix=None, column=None, scale=None, cov_p=None,
                    other=None):
         """
-        Returns the variance/covariance matrix.
+        Compute the variance/covariance matrix.
 
-        The variance/covariance matrix can be of a linear contrast
-        of the estimates of params or all params multiplied by scale which
-        will usually be an estimate of sigma^2.  Scale is assumed to be
-        a scalar.
+        The variance/covariance matrix can be of a linear contrast of the
+        estimated parameters or all params multiplied by scale which will
+        usually be an estimate of sigma^2.  Scale is assumed to be a scalar.
 
         Parameters
         ----------
@@ -1321,13 +1388,17 @@ class LikelihoodModelResults(Results):
         scale : float, optional
             Can be specified or not.  Default is None, which means that
             the scale argument is taken from the model.
+        cov_p : ndarray, optional
+            The covariance of the parameters. If not provided, this value is
+            read from `self.normalized_cov_params` or
+            `self.cov_params_default`.
         other : array_like, optional
             Can be used when r_matrix is specified.
 
         Returns
         -------
-        cov : ndarray
-            covariance matrix of the parameter estimates or of linear
+        ndarray
+            The covariance matrix of the parameter estimates or of linear
             combination of parameter estimates. See Notes.
 
         Notes
@@ -1349,7 +1420,6 @@ class LikelihoodModelResults(Results):
         OR
 
         ``(scale) * (X.T X)^(-1)[column][:,column]`` if column is 1d
-
         """
         if (hasattr(self, 'mle_settings') and
                 self.mle_settings['optimizer'] in ['l1', 'l1_cvxopt_cp']):
@@ -1397,11 +1467,13 @@ class LikelihoodModelResults(Results):
     # TODO: make sure this works as needed for GLMs
     def t_test(self, r_matrix, cov_p=None, scale=None, use_t=None):
         """
-        Compute a t-test for a each linear hypothesis of the form Rb = q
+        Compute a t-test for a each linear hypothesis of the form Rb = q.
 
         Parameters
         ----------
-        r_matrix : array_like, str, tuple
+        r_matrix : {array_like, str, tuple}
+            One of:
+
             - array : If an array is given, a p x k 2d array or length k 1d
               array specifying the linear restrictions. It is assumed
               that the linear combination is equal to zero.
@@ -1409,28 +1481,34 @@ class LikelihoodModelResults(Results):
               See the examples.
             - tuple : A tuple of arrays in the form (R, q). If q is given,
               can be either a scalar or a length p row vector.
+
         cov_p : array_like, optional
             An alternative estimate for the parameter covariance matrix.
             If None is given, self.normalized_cov_params is used.
         scale : float, optional
+            An optional `scale` to use.  Default is the scale specified
+            by the model fit.
 
             .. deprecated:: 0.10.0
 
-            An optional `scale` to use.  Default is the scale specified
-            by the model fit.
         use_t : bool, optional
-            If use_t is None, then the default of the model is used.
-            If use_t is True, then the p-values are based on the t
-            distribution.
-            If use_t is False, then the p-values are based on the normal
+            If use_t is None, then the default of the model is used. If use_t
+            is True, then the p-values are based on the t distribution. If
+            use_t is False, then the p-values are based on the normal
             distribution.
 
         Returns
         -------
-        res : ContrastResults instance
+        ContrastResults
             The results for the test are attributes of this results instance.
             The available results have the same elements as the parameter table
             in `summary()`.
+
+        See Also
+        --------
+        tvalues : Individual t statistics for the estimated parameters.
+        f_test : Perform an F tests on model parameters.
+        patsy.DesignInfo.linear_constraint : Specify a linear constraint.
 
         Examples
         --------
@@ -1481,12 +1559,6 @@ class LikelihoodModelResults(Results):
         c1            -2.0202      0.488     -8.231      0.000      -3.125      -0.915
         c2             1.0001      0.249      0.000      1.000       0.437       1.563
         ==============================================================================
-
-        See Also
-        --------
-        tvalues : individual t statistics
-        f_test : for F tests
-        patsy.DesignInfo.linear_constraint
         """
         if scale is not None:
             import warnings
@@ -1495,7 +1567,7 @@ class LikelihoodModelResults(Results):
                           DeprecationWarning)
 
         from patsy import DesignInfo
-        names = self.model.data.param_names
+        names = self.model.data.cov_names
         LC = DesignInfo(names).linear_constraint(r_matrix)
         r_matrix, q_matrix = LC.coefs, LC.constants
         num_ttests = r_matrix.shape[0]
@@ -1505,7 +1577,8 @@ class LikelihoodModelResults(Results):
                 not hasattr(self, 'cov_params_default')):
             raise ValueError('Need covariance of parameters for computing '
                              'T statistics')
-        if num_params != self.params.shape[0]:
+        params = self.params.ravel()
+        if num_params != params.shape[0]:
             raise ValueError('r_matrix and params are not aligned')
         if q_matrix is None:
             q_matrix = np.zeros(num_ttests)
@@ -1521,10 +1594,7 @@ class LikelihoodModelResults(Results):
             # switch to use_t false if undefined
             use_t = (hasattr(self, 'use_t') and self.use_t)
 
-        _t = _sd = None
-
-        _effect = np.dot(r_matrix, self.params)
-        # nan_dot multiplies with the convention nan * 0 = 0
+        _effect = np.dot(r_matrix, params)
 
         # Perform the test
         if num_ttests > 1:
@@ -1553,7 +1623,9 @@ class LikelihoodModelResults(Results):
 
         Parameters
         ----------
-        r_matrix : array_like, str, or tuple
+        r_matrix : {array_like, str, tuple}
+            One of:
+
             - array : An r x k array where r is the number of restrictions to
               test and k is the number of regressors. It is assumed
               that the linear combination is equal to zero.
@@ -1561,22 +1633,40 @@ class LikelihoodModelResults(Results):
               See the examples.
             - tuple : A tuple of arrays in the form (R, q), ``q`` can be
               either a scalar or a length k row vector.
+
         cov_p : array_like, optional
             An alternative estimate for the parameter covariance matrix.
             If None is given, self.normalized_cov_params is used.
         scale : float, optional
+            Default is 1.0 for no scaling.
 
             .. deprecated:: 0.10.0
 
-            Default is 1.0 for no scaling.
         invcov : array_like, optional
             A q x q array to specify an inverse covariance matrix based on a
             restrictions matrix.
 
         Returns
         -------
-        res : ContrastResults instance
+        ContrastResults
             The results for the test are attributes of this results instance.
+
+        See Also
+        --------
+        t_test : Perform a single hypothesis test.
+        wald_test : Perform a Wald-test using a quadratic form.
+        statsmodels.stats.contrast.ContrastResults : Test results.
+        patsy.DesignInfo.linear_constraint : Specify a linear constraint.
+
+        Notes
+        -----
+        The matrix `r_matrix` is assumed to be non-singular. More precisely,
+
+        r_matrix (pX pX.T) r_matrix.T
+
+        is assumed invertible. Here, pX is the generalized inverse of the
+        design matrix of the model. There can be problems in non-OLS models
+        where the rank of the covariance of the noise is not full.
 
         Examples
         --------
@@ -1621,23 +1711,6 @@ class LikelihoodModelResults(Results):
         >>> f_test = results.f_test(hypotheses)
         >>> print(f_test)
         <F test: F=array([[ 144.17976065]]), p=6.322026217355609e-08, df_denom=9, df_num=3>
-
-        See Also
-        --------
-        statsmodels.stats.contrast.ContrastResults
-        wald_test
-        t_test
-        patsy.DesignInfo.linear_constraint
-
-        Notes
-        -----
-        The matrix `r_matrix` is assumed to be non-singular. More precisely,
-
-        r_matrix (pX pX.T) r_matrix.T
-
-        is assumed invertible. Here, pX is the generalized inverse of the
-        design matrix of the model. There can be problems in non-OLS models
-        where the rank of the covariance of the noise is not full.
         """
         if scale != 1.0:
             import warnings
@@ -1656,7 +1729,9 @@ class LikelihoodModelResults(Results):
 
         Parameters
         ----------
-        r_matrix : array_like, str, or tuple
+        r_matrix : {array_like, str, tuple}
+            One of:
+
             - array : An r x k array where r is the number of restrictions to
               test and k is the number of regressors. It is assumed that the
               linear combination is equal to zero.
@@ -1664,14 +1739,15 @@ class LikelihoodModelResults(Results):
               See the examples.
             - tuple : A tuple of arrays in the form (R, q), ``q`` can be
               either a scalar or a length p row vector.
+
         cov_p : array_like, optional
             An alternative estimate for the parameter covariance matrix.
             If None is given, self.normalized_cov_params is used.
         scale : float, optional
+            Default is 1.0 for no scaling.
 
             .. deprecated:: 0.10.0
 
-            Default is 1.0 for no scaling.
         invcov : array_like, optional
             A q x q array to specify an inverse covariance matrix based on a
             restrictions matrix.
@@ -1681,18 +1757,21 @@ class LikelihoodModelResults(Results):
             the F distribution is used if the model specifies that use_t is True.
             The test statistic is proportionally adjusted for the distribution
             by the number of constraints in the hypothesis.
+        df_constraints : int, optional
+            The number of constraints. If not provided the number of
+            constraints is determined from r_matrix.
 
         Returns
         -------
-        res : ContrastResults instance
+        ContrastResults
             The results for the test are attributes of this results instance.
 
         See Also
         --------
-        statsmodels.stats.contrast.ContrastResults
-        f_test
-        t_test
-        patsy.DesignInfo.linear_constraint
+        f_test : Perform an F tests on model parameters.
+        t_test : Perform a single hypothesis test.
+        statsmodels.stats.contrast.ContrastResults : Test results.
+        patsy.DesignInfo.linear_constraint : Specify a linear constraint.
 
         Notes
         -----
@@ -1715,7 +1794,8 @@ class LikelihoodModelResults(Results):
             use_f = (hasattr(self, 'use_t') and self.use_t)
 
         from patsy import DesignInfo
-        names = self.model.data.param_names
+        names = self.model.data.cov_names
+        params = self.params.ravel()
         LC = DesignInfo(names).linear_constraint(r_matrix)
         r_matrix, q_matrix = LC.coefs, LC.constants
 
@@ -1724,7 +1804,7 @@ class LikelihoodModelResults(Results):
             raise ValueError('need covariance of parameters for computing '
                              'F statistics')
 
-        cparams = np.dot(r_matrix, self.params[:, None])
+        cparams = np.dot(r_matrix, params[:, None])
         J = float(r_matrix.shape[0])  # number of restrictions
 
         if q_matrix is None:
@@ -1752,7 +1832,7 @@ class LikelihoodModelResults(Results):
                               'rank is %d' % (J, J_), ValueWarning)
                 J = J_
 
-        # TODO streamline computation, we don't need to compute J if given
+        # TODO streamline computation, we do not need to compute J if given
         if df_constraints is not None:
             # let caller override J by df_constraint
             J = df_constraints
@@ -1775,29 +1855,29 @@ class LikelihoodModelResults(Results):
     def wald_test_terms(self, skip_single=False, extra_constraints=None,
                         combine_terms=None):
         """
-        Compute a sequence of Wald tests for terms over multiple columns
+        Compute a sequence of Wald tests for terms over multiple columns.
 
         This computes joined Wald tests for the hypothesis that all
         coefficients corresponding to a `term` are zero.
-
         `Terms` are defined by the underlying formula or by string matching.
 
         Parameters
         ----------
-        skip_single : boolean
+        skip_single : bool
             If true, then terms that consist only of a single column and,
             therefore, refers only to a single parameter is skipped.
             If false, then all terms are included.
         extra_constraints : ndarray
-            not tested yet
-        combine_terms : None or list of strings
+            Additional constraints to test. Note that this input has not been
+            tested.
+        combine_terms : {list[str], None}
             Each string in this list is matched to the name of the terms or
             the name of the exogenous variables. All columns whose name
             includes that string are combined in one joint test.
 
         Returns
         -------
-        test_result : result instance
+        WaldTestResults
             The result instance contains `table` which is a pandas DataFrame
             with the test results: test statistic, degrees of freedom and
             pvalues.
@@ -1825,7 +1905,6 @@ class LikelihoodModelResults(Results):
         C(Weight):C(Duration)   0.216694     0.897315972824              2
         Duration               11.187849     0.010752286833              3
         Weight                 30.263368  4.32586407145e-06              4
-
         """
         # lazy import
         from collections import defaultdict
@@ -1910,31 +1989,30 @@ class LikelihoodModelResults(Results):
 
     def t_test_pairwise(self, term_name, method='hs', alpha=0.05,
                         factor_labels=None):
-        """perform pairwise t_test with multiple testing corrected p-values
+        """
+        Perform pairwise t_test with multiple testing corrected p-values.
 
         This uses the formula design_info encoding contrast matrix and should
         work for all encodings of a main effect.
 
         Parameters
         ----------
-        result : result instance
-            The results of an estimated model with a categorical main effect.
         term_name : str
-            name of the term for which pairwise comparisons are computed.
+            The name of the term for which pairwise comparisons are computed.
             Term names for categorical effects are created by patsy and
             correspond to the main part of the exog names.
-        method : str or list of strings
-            multiple testing p-value correction, default is 'hs',
-            see stats.multipletesting
+        method : {str, list[str]}
+            The multiple testing p-value correction to apply. The default is
+            'hs'. See stats.multipletesting.
         alpha : float
-            significance level for multiple testing reject decision.
-        factor_labels : None, list of str
+            The significance level for multiple testing reject decision.
+        factor_labels : {list[str], None}
             Labels for the factor levels used for pairwise labels. If not
             provided, then the labels from the formula design_info are used.
 
         Returns
         -------
-        results : instance of a simple Results class
+        MultiCompResult
             The results are stored as attributes, the main attributes are the
             following two. Other attributes are added for debugging purposes
             or as background information.
@@ -1970,34 +2048,31 @@ class LikelihoodModelResults(Results):
                               factor_labels=factor_labels)
         return res
 
-    def conf_int(self, alpha=.05, cols=None, method='default'):
+    def conf_int(self, alpha=.05, cols=None):
         """
-        Returns the confidence interval of the fitted parameters.
+        Construct confidence interval for the fitted parameters.
 
         Parameters
         ----------
         alpha : float, optional
-            The significance level for the confidence interval.
-            ie., The default `alpha` = .05 returns a 95% confidence interval.
+            The significance level for the confidence interval. The default
+            `alpha` = .05 returns a 95% confidence interval.
         cols : array_like, optional
-            `cols` specifies which confidence intervals to return
-        method : string
-            Not Implemented Yet
-            Method to estimate the confidence_interval.
-            "Default" : uses self.bse which is based on inverse Hessian for MLE
-            "hjjh" :
-            "jac" :
-            "boot-bse"
-            "boot_quant"
-            "profile"
-
+            Specifies which confidence intervals to return.
 
         Returns
         -------
-        conf_int : array
+        array_like
             Each row contains [lower, upper] limits of the confidence interval
             for the corresponding parameter. The first column contains all
             lower, the second column contains all upper limits.
+
+        Notes
+        -----
+        The confidence interval is based on the standard normal distribution
+        if self.use_t is False. If self.use_t is True, then uses a Student's t
+        with self.df_resid_inference (or self.df_resid if df_resid_inference is
+        not defined) degrees of freedom.
 
         Examples
         --------
@@ -2014,16 +2089,9 @@ class LikelihoodModelResults(Results):
                [      -0.56251721,        0.460309  ],
                [     798.7875153 ,     2859.51541392]])
 
-
         >>> results.conf_int(cols=(2,3))
         array([[-0.1115811 ,  0.03994274],
                [-3.12506664, -0.91539297]])
-
-        Notes
-        -----
-        The confidence interval is based on the standard normal distribution.
-        Models wish to use a different distribution should overwrite this
-        method.
         """
         bse = self.bse
 
@@ -2035,23 +2103,23 @@ class LikelihoodModelResults(Results):
             dist = stats.norm
             q = dist.ppf(1 - alpha / 2)
 
-        if cols is None:
-            lower = self.params - q * bse
-            upper = self.params + q * bse
-        else:
+        params = self.params
+        lower = params - q * bse
+        upper = params + q * bse
+        if cols is not None:
             cols = np.asarray(cols)
-            lower = self.params[cols] - q * bse[cols]
-            upper = self.params[cols] + q * bse[cols]
+            lower = lower[cols]
+            upper = upper[cols]
         return np.asarray(lzip(lower, upper))
 
     def save(self, fname, remove_data=False):
         """
-        save a pickle of this instance
+        Save a pickle of this instance.
 
         Parameters
         ----------
-        fname : string or filehandle
-            fname can be a string to a file path or filename, or a filehandle.
+        fname : {str, handle}
+            A string filename or a file handle.
         remove_data : bool
             If False (default), then the instance is pickled without changes.
             If True, then all arrays with length nobs are set to None before
@@ -2074,29 +2142,39 @@ class LikelihoodModelResults(Results):
     @classmethod
     def load(cls, fname):
         """
-        load a pickle, (class method)
+        Load a pickled results instance
+
+        .. warning::
+
+           Loading pickled models is not secure against erroneous or
+           maliciously constructed data. Never unpickle data received from
+           an untrusted or unauthenticated source.
 
         Parameters
         ----------
-        fname : string or filehandle
-            fname can be a string to a file path or filename, or a filehandle.
+        fname : {str, handle}
+            A string filename or a file handle.
 
         Returns
         -------
-        unpickled instance
+        Results
+            The unpickled results instance.
         """
 
         from statsmodels.iolib.smpickle import load_pickle
         return load_pickle(fname)
 
     def remove_data(self):
-        """remove data arrays, all nobs arrays from result and model
+        """
+        Remove data arrays, all nobs arrays from result and model.
 
         This reduces the size of the instance, so it can be pickled with less
         memory. Currently tested for use with predict from an unpickled
         results and model instance.
 
-        .. warning:: Since data and some intermediate results have been removed
+        .. warning::
+
+           Since data and some intermediate results have been removed
            calculating new statistics that require them will raise exceptions.
            The exception will occur the first time an attribute is accessed
            that has been set to None.
@@ -2235,7 +2313,6 @@ class ResultMixin(object):
         """
         covariance of parameters based on outer product of jacobian of
         log-likelihood
-
         """
         #  if not hasattr(self, '_results'):
         #      raise ValueError('need to call fit first')
@@ -2289,9 +2366,9 @@ class ResultMixin(object):
 
         Returns
         -------
-        mean : array
+        mean : ndarray
             mean of parameter estimates over bootstrap replications
-        std : array
+        std : ndarray
             standard deviation of parameter estimates over bootstrap
             replications
 
@@ -2365,13 +2442,13 @@ class GenericLikelihoodModelResults(LikelihoodModelResults, ResultMixin):
     bic : float
         Bayesian information criterion. -2*`llf` + ln(`nobs`)*p where p is the
         number of regressors including the intercept.
-    bse : array
+    bse : ndarray
         The standard errors of the coefficients.
     df_resid : float
         See model definition.
     df_model : float
         See model definition.
-    fitted_values : array
+    fitted_values : ndarray
         Linear predictor XB.
     llf : float
         Value of the loglikelihood
@@ -2385,7 +2462,6 @@ class GenericLikelihoodModelResults(LikelihoodModelResults, ResultMixin):
         with degrees of freedom `df_model`.
     prsquared : float
         McFadden's pseudo-R-squared. 1 - (`llf`/`llnull`)
-
     """
 
     def __init__(self, model, mlefit):

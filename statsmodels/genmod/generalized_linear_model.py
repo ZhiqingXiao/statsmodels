@@ -18,9 +18,12 @@ McCullagh, P. and Nelder, J.A.  1989.  "Generalized Linear Models." 2nd ed.
     Chapman & Hall, Boca Rotan.
 """
 import numpy as np
+
 from . import families
+
 from statsmodels.tools.decorators import (cache_readonly,
                                           cached_data, cached_value)
+from statsmodels.compat.pandas import Appender
 
 import statsmodels.base.model as base
 import statsmodels.regression.linear_model as lm
@@ -52,7 +55,7 @@ def _check_convergence(criterion, iteration, atol, rtol):
 
 class GLM(base.LikelihoodModel):
     __doc__ = """
-    Generalized Linear Models class
+    Generalized Linear Models
 
     GLM inherits from statsmodels.base.model.LikelihoodModel
 
@@ -102,22 +105,22 @@ class GLM(base.LikelihoodModel):
     df_resid : float
         Residual degrees of freedom is equal to the number of observation n
         minus the number of regressors p.
-    endog : array
+    endog : ndarray
         See Notes.  Note that `endog` is a reference to the data so that if
         data is already an array and it is changed, then `endog` changes
         as well.
     exposure : array_like
         Include ln(exposure) in model with coefficient constrained to 1. Can
         only be used if the link is the logarithm function.
-    exog : array
+    exog : ndarray
         See Notes.  Note that `exog` is a reference to the data so that if
         data is already an array and it is changed, then `exog` changes
         as well.
-    freq_weights : array
+    freq_weights : ndarray
         See Notes. Note that `freq_weights` is a reference to the data so that
         if data is already an array and it is changed, then `freq_weights`
         changes as well.
-    var_weights : array
+    var_weights : ndarray
         See Notes. Note that `var_weights` is a reference to the data so that
         if data is already an array and it is changed, then `var_weights`
         changes as well.
@@ -126,20 +129,20 @@ class GLM(base.LikelihoodModel):
     family : family class instance
         The distribution family of the model. Can be any family in
         statsmodels.families.  Default is Gaussian.
-    mu : array
+    mu : ndarray
         The mean response of the transformed variable.  `mu` is the value of
         the inverse of the link function at lin_pred, where lin_pred is the
         linear predicted value of the WLS fit of the transformed variable.
         `mu` is only available after fit is called.  See
         statsmodels.families.family.fitted of the distribution family for more
         information.
-    n_trials : array
+    n_trials : ndarray
         See Notes. Note that `n_trials` is a reference to the data so that if
         data is already an array and it is changed, then `n_trials` changes
         as well. `n_trials` is the number of binomial trials and only available
         with that distribution. See statsmodels.families.Binomial for more
         information.
-    normalized_cov_params : array
+    normalized_cov_params : ndarray
         The p x p normalized covariance of the design / exogenous data.
         This is approximately equal to (X.T X)^(-1)
     offset : array_like
@@ -151,7 +154,7 @@ class GLM(base.LikelihoodModel):
     scaletype : str
         The scaling used for fitting the model.  This is only available after
         fit is called.  The default is None.  See GLM.fit for more information.
-    weights : array
+    weights : ndarray
         The value of the weights after the last iteration of fit.  Only
         available after fit is called.  See statsmodels.families.family for
         the specific distribution weighting functions.
@@ -196,7 +199,7 @@ class GLM(base.LikelihoodModel):
      Gaussian      x     x   x     x      x       x   x     x      x
      inv Gaussian  x     x                        x
      binomial      x     x   x     x      x       x   x           x      x
-     Poission      x     x                        x
+     Poisson       x     x                        x
      neg binomial  x     x                        x        x
      gamma         x     x                        x
      Tweedie       x     x                        x
@@ -207,7 +210,7 @@ class GLM(base.LikelihoodModel):
     Endog and exog are references so that if the data they refer to are already
     arrays and these arrays are changed, endog and exog will change.
 
-    Statsmodels supports two separte definitions of weights: frequency weights
+    statsmodels supports two separate definitions of weights: frequency weights
     and variance weights.
 
     Frequency weights produce the same results as repeating observations by the
@@ -220,11 +223,11 @@ class GLM(base.LikelihoodModel):
     assumption that that the inverse variance scales proportionally to the
     weight--an observation that is deemed more credible should have less
     variance and therefore have more weight. For the ``Poisson`` family--which
-    assumes that occurences scale proportionally with time--a natural practice
+    assumes that occurrences scale proportionally with time--a natural practice
     would be to use the amount of time as the variance weight and set ``endog``
-    to be a rate (occurrances per period of time). Similarly, using a
+    to be a rate (occurrences per period of time). Similarly, using a
     compound Poisson family, namely ``Tweedie``, makes a similar assumption
-    about the rate (or frequency) of occurences having variance proportional to
+    about the rate (or frequency) of occurrences having variance proportional to
     time.
 
     Both frequency and variance weights are verified for all basic results with
@@ -256,8 +259,9 @@ class GLM(base.LikelihoodModel):
     interpretation. The loglikelihood is not correctly specified in this case,
     and statistics based on it, such AIC or likelihood ratio tests, are not
     appropriate.
-
     """ % {'extra_params': base._missing_param_doc}
+    # Maximum number of endogenous variables when using a formula
+    _formula_max_endog = 2
 
     def __init__(self, endog, exog, family=None, offset=None,
                  exposure=None, freq_weights=None, var_weights=None,
@@ -428,7 +432,6 @@ class GLM(base.LikelihoodModel):
         score_obs : ndarray, 2d
             The first derivative of the loglikelihood function evaluated at
             params for each observation.
-
         """
 
         score_factor = self.score_factor(params, scale=scale)
@@ -451,7 +454,6 @@ class GLM(base.LikelihoodModel):
         score : ndarray_1d
             The first derivative of the loglikelihood function calculated as
             the sum of `score_obs`
-
         """
         score_factor = self.score_factor(params, scale=scale)
         return np.dot(score_factor, self.exog)
@@ -475,7 +477,6 @@ class GLM(base.LikelihoodModel):
         score_factor : ndarray_1d
             A 1d weight vector used in the calculation of the score_obs.
             The score_obs are obtained by `score_factor[:, None] * exog`
-
         """
         mu = self.predict(params)
         if scale is None:
@@ -623,7 +624,6 @@ class GLM(base.LikelihoodModel):
             The derivative of the score_obs with respect to endog. This
             can is given by `score_factor0[:, None] * exog` where
             `score_factor0` is the score_factor without the residual.
-
         """
         mu = self.predict(params)
         if scale is None:
@@ -678,7 +678,6 @@ class GLM(base.LikelihoodModel):
         Notes
         -----
         not yet verified for case with scale not equal to 1.
-
         """
 
         if exog_extra is None:
@@ -723,13 +722,13 @@ class GLM(base.LikelihoodModel):
 
     def estimate_scale(self, mu):
         """
-        Estimates the dispersion/scale.
+        Estimate the dispersion/scale.
 
         Type of scale can be chose in the fit method.
 
         Parameters
         ----------
-        mu : array
+        mu : ndarray
             mu is the mean response estimate
 
         Returns
@@ -796,7 +795,7 @@ class GLM(base.LikelihoodModel):
         Returns
         -------
         power : float
-            The estimated shape or power
+            The estimated shape or power.
         """
         if method == 'brentq':
             from scipy.optimize import brentq
@@ -879,7 +878,7 @@ class GLM(base.LikelihoodModel):
     def get_distribution(self, params, scale=1, exog=None, exposure=None,
                          offset=None):
         """
-        Returns a random number generator for the predictive distribution.
+        Return a random number generator for the predictive distribution.
 
         Parameters
         ----------
@@ -952,19 +951,19 @@ class GLM(base.LikelihoodModel):
             initial mean will be calculated as ``np.dot(exog, start_params)``.
         maxiter : int, optional
             Default is 100.
-        method : string
+        method : str
             Default is 'IRLS' for iteratively reweighted least squares.
             Otherwise gradient optimization is used.
         tol : float
             Convergence tolerance.  Default is 1e-8.
-        scale : string or float, optional
+        scale : str or float, optional
             `scale` can be 'X2', 'dev', or a float
             The default value is None, which uses `X2` for Gamma, Gaussian,
             and Inverse Gaussian.
             `X2` is Pearson's chi-square divided by `df_resid`.
             The default is 1 for the Binomial and Poisson families.
             `dev` is the deviance divided by df_resid
-        cov_type : string
+        cov_type : str
             The type of parameter estimate covariance matrix to compute.
         cov_kwds : dict-like
             Extra arguments for calculating the covariance of the parameter
@@ -1003,7 +1002,7 @@ class GLM(base.LikelihoodModel):
             'lstsq' and 'pinv' regularize the estimate in singular and
             near-singular cases by truncating small singular values based
             on `rcond` of the respective numpy.linalg function. 'qr' is
-            only valied for cases that are not singular nor near-singular.
+            only valid for cases that are not singular nor near-singular.
         optim_hessian : {'eim', 'oim'}, optional
             (available with scipy optimizer fits) When 'oim'--the default--the
             observed Hessian is used in fitting. 'eim' is the expected Hessian.
@@ -1017,7 +1016,6 @@ class GLM(base.LikelihoodModel):
         in future versions. If attach_wls' is true, then the final WLS
         instance of the IRLS iteration is attached to the results instance
         as `results_wls` attribute.
-
         """
         self.scaletype = scale
 
@@ -1203,13 +1201,14 @@ class GLM(base.LikelihoodModel):
         return GLMResultsWrapper(glm_results)
 
     def fit_regularized(self, method="elastic_net", alpha=0.,
-                        start_params=None, refit=False, **kwargs):
+                        start_params=None, refit=False,
+                        opt_method="bfgs", **kwargs):
         r"""
         Return a regularized fit to a linear regression model.
 
         Parameters
         ----------
-        method :
+        method : {'elastic_net'}
             Only the `elastic_net` approach is currently implemented.
         alpha : scalar or array_like
             The penalty weight.  If a scalar, the same penalty weight
@@ -1222,10 +1221,15 @@ class GLM(base.LikelihoodModel):
             If True, the model is refit using only the variables that
             have non-zero coefficients in the regularized fit.  The
             refitted model is not regularized.
+        opt_method : string
+            The method used for numerical optimization.
+        **kwargs
+            Additional keyword arguments used when fitting the model.
 
         Returns
         -------
-        An array, or a GLMResults object of the same type returned by `fit`.
+        GLMResults
+            An array or a GLMResults object, same type returned by `fit`.
 
         Notes
         -----
@@ -1257,7 +1261,7 @@ class GLM(base.LikelihoodModel):
         """
 
         if kwargs.get("L1_wt", 1) == 0:
-            return self._fit_ridge(alpha, start_params)
+            return self._fit_ridge(alpha, start_params, opt_method)
 
         from statsmodels.base.elastic_net import fit_elasticnet
 
@@ -1279,13 +1283,13 @@ class GLM(base.LikelihoodModel):
 
         return result
 
-    def _fit_ridge(self, alpha, start_params, method="newton-cg"):
+    def _fit_ridge(self, alpha, start_params, method):
 
         if start_params is None:
             start_params = np.zeros(self.exog.shape[1])
 
         def fun(x):
-            return -(self.loglike(x) / self.nobs - alpha * np.sum(x**2) / 2)
+            return -(self.loglike(x) / self.nobs - np.sum(alpha * x**2) / 2)
 
         def grad(x):
             return -(self.score(x) / self.nobs - alpha * x)
@@ -1337,11 +1341,11 @@ class GLM(base.LikelihoodModel):
         Returns
         -------
         results : Results instance
-
         """
 
         from patsy import DesignInfo
-        from statsmodels.base._constraints import fit_constrained
+        from statsmodels.base._constraints import (fit_constrained,
+                                                   LinearConstraints)
 
         # same pattern as in base.LikelihoodModel.t_test
         lc = DesignInfo(self.exog_names).linear_constraint(constraints)
@@ -1365,7 +1369,7 @@ class GLM(base.LikelihoodModel):
         k_constr = len(q)
         res._results.df_resid += k_constr
         res._results.df_model -= k_constr
-        res._results.constraints = lc
+        res._results.constraints = LinearConstraints.from_patsy(lc)
         res._results.k_constr = k_constr
         res._results.results_constrained = res_constr
         return res
@@ -1390,18 +1394,18 @@ class GLMResults(base.LikelihoodModelResults):
         Pointer to GLM model instance that called fit.
     nobs : float
         The number of observations n.
-    normalized_cov_params : array
+    normalized_cov_params : ndarray
         See GLM docstring
-    params : array
+    params : ndarray
         The coefficients of the fitted model.  Note that interpretation
         of the coefficients often depends on the distribution family and the
         data.
-    pvalues : array
+    pvalues : ndarray
         The two-tailed p-values for the parameters.
     scale : float
         The estimate of the scale / dispersion for the model fit.
         See GLM.fit and GLM.estimate_scale for more information.
-    stand_errors : array
+    stand_errors : ndarray
         The standard errors of the fitted GLM.   #TODO still named bse
 
     See Also
@@ -1476,7 +1480,7 @@ class GLMResults(base.LikelihoodModelResults):
     @cached_data
     def resid_response(self):
         """
-        Respnose residuals.  The response residuals are defined as
+        Response residuals.  The response residuals are defined as
         `endog` - `fittedvalues`
         """
         return self._n_trials * (self._endog-self.mu)
@@ -1564,8 +1568,12 @@ class GLMResults(base.LikelihoodModelResults):
     @cached_data
     def fittedvalues(self):
         """
-        Linear predicted values for the fitted model.
-        dot(exog, params)
+        The estimated mean response.
+
+        This is the value of the inverse of the link function at
+        lin_pred, where lin_pred is the linear predicted value
+        obtained by multiplying the design matrix by the coefficient
+        vector.
         """
         return self.mu
 
@@ -1661,6 +1669,7 @@ class GLMResults(base.LikelihoodModelResults):
                 (self.model.wnobs - self.df_model - 1) *
                 np.log(self.model.wnobs))
 
+    @Appender(pred.get_prediction_glm.__doc__)
     def get_prediction(self, exog=None, exposure=None, offset=None,
                        transform=True, linear=False,
                        row_labels=None):
@@ -1683,8 +1692,6 @@ class GLMResults(base.LikelihoodModelResults):
                                       pred_kwds=pred_kwds)
 
         return res
-
-    get_prediction.__doc__ = pred.get_prediction_glm.__doc__
 
     def get_hat_matrix_diag(self, observed=True):
         """
@@ -1744,6 +1751,7 @@ class GLMResults(base.LikelihoodModelResults):
                          hat_matrix_diag=hat_matrix_diag)
         return infl
 
+    @Appender(base.LikelihoodModelResults.remove_data.__doc__)
     def remove_data(self):
         # GLM has alias/reference in result instance
         self._data_attr.extend([i for i in self.model._data_attr
@@ -1757,12 +1765,10 @@ class GLMResults(base.LikelihoodModelResults):
         self._iweights = None
         self._n_trials = None
 
-    remove_data.__doc__ = base.LikelihoodModelResults.remove_data.__doc__
-
+    @Appender(_plot_added_variable_doc % {'extra_params_doc': ''})
     def plot_added_variable(self, focus_exog, resid_type=None,
                             use_glm_weights=True, fit_kwargs=None,
                             ax=None):
-        # Docstring attached below
 
         from statsmodels.graphics.regressionplots import plot_added_variable
 
@@ -1773,30 +1779,21 @@ class GLMResults(base.LikelihoodModelResults):
 
         return fig
 
-    plot_added_variable.__doc__ = _plot_added_variable_doc % {
-        'extra_params_doc': ''}
-
+    @Appender(_plot_partial_residuals_doc % {'extra_params_doc': ''})
     def plot_partial_residuals(self, focus_exog, ax=None):
-        # Docstring attached below
 
         from statsmodels.graphics.regressionplots import plot_partial_residuals
 
         return plot_partial_residuals(self, focus_exog, ax=ax)
 
-    plot_partial_residuals.__doc__ = _plot_partial_residuals_doc % {
-        'extra_params_doc': ''}
-
+    @Appender(_plot_ceres_residuals_doc % {'extra_params_doc': ''})
     def plot_ceres_residuals(self, focus_exog, frac=0.66, cond_means=None,
                              ax=None):
-        # Docstring attached below
 
         from statsmodels.graphics.regressionplots import plot_ceres_residuals
 
         return plot_ceres_residuals(self, focus_exog, frac,
                                     cond_means=cond_means, ax=ax)
-
-    plot_ceres_residuals.__doc__ = _plot_ceres_residuals_doc % {
-        'extra_params_doc': ''}
 
     def summary(self, yname=None, xname=None, title=None, alpha=.05):
         """
@@ -1932,7 +1929,6 @@ if __name__ == "__main__":
     # print(GLMT[0])
     # print(GLMT[2])
     GLMTp = GLMmod.summary(title='Test GLM')
-
     """
 From Stata
 . webuse beetle

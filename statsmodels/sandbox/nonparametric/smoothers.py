@@ -7,17 +7,10 @@ who generate a smooth fit of a set of (x,y) pairs.
 # pylint: disable-msg=W0142
 # pylint: disable-msg=E0611
 # pylint: disable-msg=E1101
-from statsmodels.compat.python import long
 
 import numpy as np
 from . import kernels
-#import numbers
-#from scipy.linalg import solveh_banded
-#from scipy.optimize import golden
 
-#from models import _hbspline        # Need to alter setup to be able to import
-                                    # extension from models or drop for scipy
-#from models.bspline import BSpline, _band2array
 
 class KernelSmoother(object):
     """
@@ -62,7 +55,7 @@ class KernelSmoother(object):
         confidence.
         These bounds are based on variance only, and do not include the bias.
         If the bandwidth is much larger than the curvature of the underlying
-        funtion then the bias could be large.
+        function then the bias could be large.
 
         x is the points on which you want to evaluate the fit and the errors.
 
@@ -71,7 +64,7 @@ class KernelSmoother(object):
         xth sample point - so they are closer together where the data
         is denser.
         """
-        if isinstance(x, (int, long)):
+        if isinstance(x, int):
             sorted_x = np.array(self.x)
             sorted_x.sort()
             confx = sorted_x[::x]
@@ -97,11 +90,10 @@ class PolySmoother(object):
 
     This is a 3 liner with OLS or WLS, see test.
     It's here as a test smoother for GAM
-
     """
     #JP: heavily adjusted to work as plugin replacement for bspline
     #   smoother in gam.py  initialized by function default_smoother
-    #   Only fixed exceptions, I didn't check whether it is statistically
+    #   Only fixed exceptions, I did not check whether it is statistically
     #   correctand I think it is not, there are still be some dimension
     #   problems, and there were some dimension problems initially.
     # TODO: undo adjustments and fix dimensions correctly
@@ -229,7 +221,7 @@ class PolySmoother(object):
 ##        if x is None:
 ##            x = self.tau[(self.M-1):-(self.M-1)] # internal knots
 ##
-##        if pen == 0.: # can't use cholesky for singular matrices
+##        if pen == 0.: # cannot use cholesky for singular matrices
 ##            banded = False
 ##
 ##        if x.shape != y.shape:

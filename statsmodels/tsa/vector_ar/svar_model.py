@@ -11,7 +11,6 @@ import numpy as np
 import numpy.linalg as npl
 from numpy.linalg import slogdet
 
-from statsmodels.compat.python import range
 from statsmodels.compat.pandas import deprecate_kwarg
 
 from statsmodels.tools.decorators import deprecated_alias
@@ -223,7 +222,7 @@ class SVAR(tsbase.TimeSeriesModel):
                        trend='c', solver="nm", override=False):
         """
         lags : int
-        trend : string or None
+        trend : {str, None}
             As per above
         """
         k_trend = util.get_trendorder(trend)
@@ -275,7 +274,7 @@ class SVAR(tsbase.TimeSeriesModel):
         is estimated
         """
 
-        #TODO: this doesn't look robust if A or B is None
+        #TODO: this does not look robust if A or B is None
         A = self.A
         B = self.B
         A_mask = self.A_mask
@@ -348,7 +347,6 @@ class SVAR(tsbase.TimeSeriesModel):
         Returns
         -------
         A_solve, B_solve: ML solutions for A, B matrices
-
         """
         #TODO: this could stand a refactor
         A_mask = self.A_mask
@@ -479,7 +477,6 @@ class SVARProcess(VARProcess):
         """
 
         Unavailable for SVAR
-
         """
         raise NotImplementedError
 
@@ -488,7 +485,6 @@ class SVARProcess(VARProcess):
 
         Compute Structural MA coefficient matrices using MLE
         of A, B
-
         """
         if P is None:
             A_solve = self.A_solve
@@ -505,10 +501,10 @@ class SVARResults(SVARProcess, VARResults):
 
     Parameters
     ----------
-    endog : array
-    endog_lagged : array
-    params : array
-    sigma_u : array
+    endog : ndarray
+    endog_lagged : ndarray
+    params : ndarray
+    sigma_u : ndarray
     lag_order : int
     model : VAR model instance
     trend : str {'nc', 'c', 'ct'}
@@ -601,7 +597,7 @@ class SVARResults(SVARProcess, VARResults):
         coefs = reshaped.swapaxes(1, 2).copy()
 
         #SVAR components
-        #TODO: if you define these here, you don't also have to define
+        #TODO: if you define these here, you do not also have to define
         #them in SVAR process, but I left them for now -ss
         self.A = A
         self.B = B
@@ -660,7 +656,6 @@ class SVARResults(SVARProcess, VARResults):
         Returns
         -------
         Tuple of lower and upper arrays of ma_rep monte carlo standard errors
-
         """
         neqs = self.neqs
         mean = self.mean()

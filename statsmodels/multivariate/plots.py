@@ -9,19 +9,19 @@ def plot_scree(eigenvals, total_var, ncomp=None, x_label='factor'):
     Parameters
     ----------
     eigenvals : array_like
-        THe eigenvalues
+        The eigenvalues
     total_var : float
         the total variance (for plotting percent variance explained)
     ncomp : int, optional
         Number of factors to include in the plot.  If None, will
         included the same as the number of maximum possible loadings
-    x_label : string
+    x_label : str
         label of x-axis
 
     Returns
     -------
-    fig : figure
-        Handle to the figure
+    Figure
+        Handle to the figure.
     """
     fig = plt.figure()
     ncomp = len(eigenvals) if ncomp is None else ncomp
@@ -97,7 +97,6 @@ def plot_loadings(loadings, col_names=None, row_names=None,
     Returns
     -------
     figs : a list of figure handles
-
     """
     k_var, n_factor = loadings.shape
     if loading_pairs is None:

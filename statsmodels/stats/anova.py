@@ -259,7 +259,7 @@ def anova3_lm_single(model, design_info, n_rows, test, pr_test, robust):
         index.append(term.name())
 
     table.index = Index(index + ['Residual'])
-    #NOTE: Don't need to sort because terms are an ordered dict now
+    #NOTE: Do not need to sort because terms are an ordered dict now
     #table = table.iloc[np.argsort(col_order + [model.model.exog.shape[1]+1])]
     # back out sum of squares from f_test
     ssr = table[test] * table['df'] * model.ssr/model.df_resid
@@ -409,7 +409,6 @@ def _ssr_reduced_model(y, x, term_slices, params, keys):
         residual sum of squares
     df : int
         degrees of freedom
-
     """
     ind = _not_slice(term_slices, keys, x.shape[1])
     params1 = params[ind]
@@ -434,15 +433,15 @@ class AnovaRM(object):
     Parameters
     ----------
     data : DataFrame
-    depvar : string
+    depvar : str
         The dependent variable in `data`
-    subject : string
+    subject : str
         Specify the subject id
-    within : a list of string(s)
+    within : list[str]
         The within-subject factors
-    between : a list of string(s)
+    between : list[str]
         The between-subject factors, this is not yet implemented
-    aggregate_func : None, 'mean', or function
+    aggregate_func : {None, 'mean', callable}
         If the data set contains more than a single observation per subject
         and cell of the specified model, this function will be used to
         aggregate the data before running the Anova. `None` (the default) will
@@ -452,7 +451,7 @@ class AnovaRM(object):
 
     Returns
     -------
-    results: AnovaResults instance
+    results : AnovaResults instance
 
     Raises
     ------
@@ -473,7 +472,6 @@ class AnovaRM(object):
     References
     ----------
     .. [*] Rutherford, Andrew. Anova and ANCOVA: a GLM approach. John Wiley & Sons, 2011.
-
     """
 
     def __init__(self, data, depvar, subject, within=None, between=None,
@@ -519,7 +517,6 @@ class AnovaRM(object):
         returns None if it is balance
 
         Return might change
-
         """
         factor_levels = 1
         for wi in self.within:
@@ -552,7 +549,6 @@ class AnovaRM(object):
         Returns
         -------
         AnovaResults instance
-
         """
         y = self.data[self.depvar].values
 
@@ -634,7 +630,6 @@ class AnovaResults(object):
         Returns
         -------
         summary : summary2.Summary instance
-
         """
         summ = summary2.Summary()
         summ.add_title('Anova')

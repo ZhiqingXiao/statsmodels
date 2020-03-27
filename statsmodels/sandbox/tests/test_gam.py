@@ -12,10 +12,10 @@ Notes
 -----
 
 TODO: TestGAMGamma: has test failure (GLM looks good),
-        adding log-link didn't help
-        resolved: gamma doesn't fail anymore after tightening the
+        adding log-link did not help
+        resolved: gamma does not fail anymore after tightening the
                   convergence criterium (rtol=1e-6)
-TODO: TestGAMNegativeBinomial: rvs generation doesn't work,
+TODO: TestGAMNegativeBinomial: rvs generation does not work,
         nbinom needs 2 parameters
 TODO: TestGAMGaussianLogLink: test failure,
         but maybe precision issue, not completely off
@@ -74,7 +74,7 @@ example: Gamma looks good in average bias and average RMSE (RMISE)
 
 
 """
-from statsmodels.compat.python import get_class, lrange
+from statsmodels.compat.python import lrange
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_equal
 
@@ -162,7 +162,6 @@ class BaseAM(object):
         cls.y_true, cls.x, cls.exog = y_true, x, exog_reduced
 
 
-
 class TestAdditiveModel(BaseAM, CheckAM):
 
     @classmethod
@@ -198,7 +197,7 @@ class TestAdditiveModel(BaseAM, CheckAM):
         res1.params = np.array([const] + slopes)
 
     def test_fitted(self):
-        # We have to override the base class because this case doesn't fail,
+        # We have to override the base class because this case does not fail,
         #  while all others in this module do (as of 2019-05-22)
         super(TestAdditiveModel, self).test_fitted()
 
@@ -219,12 +218,12 @@ class BaseGAM(BaseAM, CheckGAM):
         cls.mu_true = mu_true = f.link.inverse(y_true)
 
         np.random.seed(8765993)
-        #y_obs = np.asarray([stats.poisson.rvs(p) for p in mu], float)
-        if issubclass(get_class(cls.rvs), stats.rv_discrete):
-            # Discrete distributions don't take `scale`.
-            y_obs = cls.rvs(mu_true, size=nobs)
-        else:
+        # Discrete distributions do not take `scale`.
+        try:
             y_obs = cls.rvs(mu_true, scale=scale, size=nobs)
+        except TypeError:
+            y_obs = cls.rvs(mu_true, size=nobs)
+
         m = GAM(y_obs, x, family=f)  #TODO: y_obs is twice __init__ and fit
         m.fit(y_obs, maxiter=100)
         res_gam = m.results
@@ -259,7 +258,7 @@ class TestGAMPoisson(BaseGAM):
     def setup_class(cls):
         super(TestGAMPoisson, cls).setup_class() #initialize DGP
 
-        cls.family =  family.Poisson()
+        cls.family = family.Poisson()
         cls.rvs = stats.poisson.rvs
 
         cls.init()
@@ -270,7 +269,7 @@ class TestGAMBinomial(BaseGAM):
     def setup_class(cls):
         super(TestGAMBinomial, cls).setup_class() #initialize DGP
 
-        cls.family =  family.Binomial()
+        cls.family = family.Binomial()
         cls.rvs = stats.bernoulli.rvs
 
         cls.init()
@@ -291,7 +290,7 @@ class TestGAMGaussianLogLink(BaseGAM):
     def setup_class(cls):
         super(TestGAMGaussianLogLink, cls).setup_class()  # initialize DGP
 
-        cls.family = family.Gaussian(links.log)
+        cls.family = family.Gaussian(links.log())
         cls.rvs = stats.norm.rvs
         cls.scale = 5
 
@@ -304,7 +303,7 @@ class TestGAMGamma(BaseGAM):
     def setup_class(cls):
         super(TestGAMGamma, cls).setup_class() #initialize DGP
 
-        cls.family =  family.Gamma(links.log())
+        cls.family = family.Gamma(links.log())
         cls.rvs = stats.gamma.rvs
 
         cls.init()
@@ -314,13 +313,13 @@ class TestGAMGamma(BaseGAM):
                           "to _parse_args_rvs",
                    strict=True, raises=TypeError)
 class TestGAMNegativeBinomial(BaseGAM):
-    # TODO: rvs generation doesn't work, nbinom needs 2 parameters
+    # TODO: rvs generation does not work, nbinom needs 2 parameters
 
     @classmethod
     def setup_class(cls):
         super(TestGAMNegativeBinomial, cls).setup_class()  # initialize DGP
 
-        cls.family =  family.NegativeBinomial()
+        cls.family = family.NegativeBinomial()
         cls.rvs = stats.nbinom.rvs
 
         cls.init()

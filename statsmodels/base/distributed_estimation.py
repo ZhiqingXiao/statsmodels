@@ -88,7 +88,7 @@ def _est_regularized_naive(mod, pnum, partitions, fit_kwds=None):
 
     Returns
     -------
-    An array of the paramters for the regularized fit
+    An array of the parameters for the regularized fit
     """
 
     if fit_kwds is None:
@@ -329,7 +329,7 @@ def _helper_fit_partition(self, pnum, endog, exog, fit_kwds,
                           init_kwds_e={}):
     """handles the model fitting for each machine. NOTE: this
     is primarily handled outside of DistributedModel because
-    joblib can't handle class methods.
+    joblib cannot handle class methods.
 
     Parameters
     ----------
@@ -419,11 +419,11 @@ class DistributedModel(object):
     results_kwds : dict-like
         See Parameters.
 
-    Examples
-    --------
-
     Notes
     -----
+
+    Examples
+    --------
     """
 
     def __init__(self, partitions, model_class=None,
@@ -635,19 +635,17 @@ class DistributedModel(object):
 
 
 class DistributedResults(LikelihoodModelResults):
-
     """
     Class to contain model results
 
     Parameters
     ----------
     model : class instance
-        class instance for model used for distributed data,
+        Class instance for model used for distributed data,
         this particular instance uses fake data and is really
         only to allow use of methods like predict.
-    params : array
-        parameter estimates from the fit model.
-
+    params : ndarray
+        Parameter estimates from the fit model.
     """
 
     def __init__(self, model, params):
@@ -663,15 +661,17 @@ class DistributedResults(LikelihoodModelResults):
             The values for which we want to predict, unlike standard
             predict this is NOT optional since the data in self.model
             is fake.
-        args, kwargs :
-            Some models can take additional arguments or keywords, see the
+        *args :
+            Some models can take additional arguments. See the
+            predict method of the model for the details.
+        **kwargs :
+            Some models can take additional keywords arguments. See the
             predict method of the model for the details.
 
         Returns
         -------
             prediction : ndarray, pandas.Series or pandas.DataFrame
             See self.model.predict
-
         """
 
         return self.model.predict(self.params, exog, *args, **kwargs)

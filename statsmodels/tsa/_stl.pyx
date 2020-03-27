@@ -81,15 +81,14 @@ work    workspace of (n+2*np)*5 locations.
 """
 import pandas as pd
 import numpy as np
-cimport numpy as np 
 from libc.math cimport fabs, sqrt, isnan, NAN
 
 from statsmodels.tsa.tsatools import freq_to_period
 
-np.import_array()
 
 def _is_pos_int(x, odd):
-    valid = isinstance(x, (int, np.integer))
+    valid = (isinstance(x, (int, np.integer))
+             and not isinstance(x, np.timedelta64))
     valid = valid and not isinstance(x, (float, np.floating))
     try:
         valid = valid and x > 0
@@ -102,17 +101,17 @@ def _is_pos_int(x, odd):
 
 cdef class STL(object):
     """
-    STL(y, period=None, seasonal=7, trend=None, low_pass=None, seasonal_deg=0,
-        trend_deg=0, low_pass_deg=0, robust=False, seasonal_jump=1,
-        trend_jump=1, low_pass_jump=1)
+    STL(endog, period=None, seasonal=7, trend=None, low_pass=None,
+        seasonal_deg=0, trend_deg=0, low_pass_deg=0, robust=False,
+        seasonal_jump=1, trend_jump=1, low_pass_jump=1)
 
-    Season-Trend decomposition using LOESS
+    Season-Trend decomposition using LOESS.
 
     Parameters
     ----------
     endog : array-like
         Data to be decomposed. Must be squeezable to 1-d.
-    period: {int, None}, optional
+    period : {int, None}, optional
         Periodicity of the sequence. If None and endog is a pandas Series or
         DataFrame, attempts to determine from endog. If endog is a ndarray,
         period must be provided.
@@ -123,30 +122,38 @@ cdef class STL(object):
         Length of the trend smoother. Must be an odd integer. If not provided
         uses the smallest odd integer greater than 1.5 * period, following the
         suggestion in the original implementation.
-    low_pass: {int, None}, optional
+    low_pass : {int, None}, optional
         Length of the low-pass filter. Must be an odd integer >=3. If not
         provided, uses the smallest odd integer > period.
-    seasonal_deg: int, optional
-        Degree of seasonal LOESS. 0 (constant) or 1 (constant and trend)
-    trend_deg: int, optional
-        Degree of trend LOESS. 0 (constant) or 1 (constant and trend)
-    low_pass_deg: int, optional
-        Degree of low pass LOESS. 0 (constant) or 1 (constant and trend)
-    robust: bool, optional
+    seasonal_deg : int, optional
+        Degree of seasonal LOESS. 0 (constant) or 1 (constant and trend).
+    trend_deg : int, optional
+        Degree of trend LOESS. 0 (constant) or 1 (constant and trend).
+    low_pass_deg : int, optional
+        Degree of low pass LOESS. 0 (constant) or 1 (constant and trend).
+    robust : bool, optional
         Flag indicating whether to use a weighted version that is robust to
-        some forms of outliers
-    seasonal_jump: int, optional
+        some forms of outliers.
+    seasonal_jump : int, optional
         Positive integer determining the linear interpolation step. If larger
-        than 1, the LOESS is used every seasonal_jump points and values between
-        the two are linearly interpolated. Higher values reduce estimation time
-    trend_jump: int, optional
+        than 1, the LOESS is used every seasonal_jump points and linear
+        interpolation is between fitted points. Higher values reduce
+        estimation time.
+    trend_jump : int, optional
         Positive integer determining the linear interpolation step. If larger
         than 1, the LOESS is used every trend_jump points and values between
-        the two are linearly interpolated. Higher values reduce estimation time
-    low_pass_jump: int, optional
+        the two are linearly interpolated. Higher values reduce estimation
+        time.
+    low_pass_jump : int, optional
         Positive integer determining the linear interpolation step. If larger
         than 1, the LOESS is used every low_pass_jump points and values between
-        the two are linearly interpolated. Higher values reduce estimation time
+        the two are linearly interpolated. Higher values reduce estimation
+        time.
+
+    See Also
+    --------
+    statsmodels.tsa.seasonal.DecomposeResult
+    statsmodels.tsa.seasonal.seasonal_decompose
 
     Notes
     -----
@@ -155,9 +162,15 @@ cdef class STL(object):
     used in the robust weighting. This version matches the fixed version that
     uses a correct partitioned sort to determine the median.
 
+    References
+    ----------
+    .. [1] R. B. Cleveland, W. S. Cleveland, J.E. McRae, and I. Terpenning
+        (1990) STL: A Seasonal-Trend Decomposition Procedure Based on LOESS.
+        Journal of Official Statistics, 6, 3-73.
+
     Examples
     --------
-    The original example uses STL to decompos CO2 data into level, season and a
+    The original example uses STL to decompose CO2 data into level, season and a
     residual.
 
     Start by aggregating to monthly, and filling any missing values
@@ -174,17 +187,9 @@ cdef class STL(object):
     >>> from statsmodels.tsa.seasonal import STL
     >>> res = STL(data).fit()
     >>> res.plot()
+    >>> plt.show()
 
-    See Also
-    --------
-    statsmodels.tsa.seasonal.DecomposeResult
-    statsmodels.tsa.seasonal.seasonal_decompose
-
-    References
-    ----------
-    .. [1] R. B. Cleveland, W. S. Cleveland, J.E. McRae, and I. Terpenning
-        (1990) STL: A Seasonal-Trend Decomposition Procedure Based on LOESS.
-        Journal of Official Statistics, 6, 3-73.
+    .. plot:: plots/stl_plot.py
     """
     cdef object endog
     cdef Py_ssize_t nobs
@@ -254,21 +259,23 @@ cdef class STL(object):
 
     def fit(self, inner_iter=None, outer_iter=None):
         """
-        Estimate season, trend and residuals
+        fit(inner_iter=None, outer_iter=None)
+
+        Estimate season, trend and residuals components.
 
         Parameters
         ----------
-        inner_iter: {int, None} optional
+        inner_iter : {int, None}, optional
             Number of iterations to perform in the inner loop. If not provided
             uses 2 if ``robust`` is True, or 5 if not.
-        outer_iter: {int, None} optional
+        outer_iter : {int, None}, optional
             Number of iterations to perform in the outer loop. If not provided
             uses 15 if ``robust`` is True, or 0 if not.
 
         Returns
         -------
-        results : DecomposeResult
-            Estimation results
+        DecomposeResult
+            Estimation results.
         """
         cdef Py_ssize_t i
 

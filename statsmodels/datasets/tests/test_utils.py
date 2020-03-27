@@ -1,8 +1,7 @@
-from statsmodels.compat.python import HTTPError, URLError
-
 import os
 from ssl import SSLError
 from socket import timeout
+from urllib.error import HTTPError, URLError
 
 import numpy as np
 from numpy.testing import assert_, assert_array_equal
@@ -44,10 +43,10 @@ def test_get_rdataset_write_read_cache():
     guerry2 = get_rdataset("Guerry", "HistData", cache=cur_dir)
     assert_(guerry2.from_cache is True)
     fn = "raw.githubusercontent.com,vincentarelbundock,Rdatasets,master,csv," \
-         "HistData,Guerry.csv.zip"
+         "HistData,Guerry-v2.csv.zip"
     os.remove(os.path.join(cur_dir, fn))
     fn = "raw.githubusercontent.com,vincentarelbundock,Rdatasets,master,doc," \
-         "HistData,rst,Guerry.rst.zip"
+         "HistData,rst,Guerry-v2.rst.zip"
     os.remove(os.path.join(cur_dir, fn))
 
 
@@ -69,7 +68,7 @@ def test_webuse():
 
 def test_webuse_pandas():
     # test copied and adjusted from iolib/tests/test_foreign
-    from pandas.util.testing import assert_frame_equal
+    from statsmodels.compat.pandas import assert_frame_equal
     from statsmodels.datasets import macrodata
     dta = macrodata.load_pandas().data
     base_gh = "https://github.com/statsmodels/statsmodels/raw/master/" \

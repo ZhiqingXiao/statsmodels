@@ -13,51 +13,57 @@ from statsmodels.tools.sm_exceptions import ValueWarning
 from statsmodels.tools.data import _is_using_pandas, _is_recarray
 from statsmodels.tools.validation import array_like
 
+
 def add_trend(x, trend="c", prepend=False, has_constant='skip'):
     """
-    Adds a trend and/or constant to an array.
+    Add a trend and/or constant to an array.
 
     Parameters
     ----------
-    X : array_like
+    x : array_like
         Original array of data.
-    trend : str {"c","t","ct","ctt"}
-        "c" add constant only
-        "t" add trend only
-        "ct" add constant and linear trend
-        "ctt" add constant and linear and quadratic trend.
+    trend : str {'n', 'c', 't', 'ct', 'ctt'}
+        The trend to add.
+
+        * 'n' add no trend.
+        * 'c' add constant only.
+        * 't' add trend only.
+        * 'ct' add constant and linear trend.
+        * 'ctt' add constant and linear and quadratic trend.
     prepend : bool
         If True, prepends the new data to the columns of X.
     has_constant : str {'raise', 'add', 'skip'}
-        Controls what happens when trend is 'c' and a constant already
-        exists in X. 'raise' will raise an error. 'add' will duplicate a
-        constant. 'skip' will return the data without change. 'skip' is the
-        default.
+        Controls what happens when trend is 'c' and a constant column already
+        exists in x. 'raise' will raise an error. 'add' will add a column of
+        1s. 'skip' will return the data without change. 'skip' is the default.
 
     Returns
     -------
-    y : array, recarray or DataFrame
+    array_like
         The original data with the additional trend columns.  If x is a
         recarray or pandas Series or DataFrame, then the trend column names
         are 'const', 'trend' and 'trend_squared'.
 
-    Notes
-    -----
-    Returns columns as ["ctt","ct","c"] whenever applicable. There is currently
-    no checking for an existing trend.
-
     See Also
     --------
     statsmodels.tools.tools.add_constant
+        Add a constant column to an array.
+
+    Notes
+    -----
+    Returns columns as ['ctt','ct','c'] whenever applicable. There is currently
+    no checking for an existing trend.
     """
     prepend = bool_like(prepend, 'prepend')
-    trend = string_like(trend, 'trend', options=('c', 't', 'ct', 'ctt'))
+    trend = string_like(trend, 'trend', options=('n', 'c', 't', 'ct', 'ctt'))
     has_constant = string_like(has_constant, 'has_constant',
                                options=('raise', 'add', 'skip'))
 
     # TODO: could be generalized for trend of aribitrary order
     columns = ['const', 'trend', 'trend_squared']
-    if trend == "c":  # handles structured arrays
+    if trend == 'n':
+        return x.copy()
+    elif trend == "c":  # handles structured arrays
         columns = columns[:1]
         trendorder = 0
     elif trend == "ct" or trend == "t":
@@ -72,6 +78,11 @@ def add_trend(x, trend="c", prepend=False, has_constant='skip'):
     is_pandas = _is_using_pandas(x, None) or is_recarray
     if is_pandas or is_recarray:
         if is_recarray:
+            # deprecated: remove recarray support after 0.12
+            import warnings
+            from statsmodels.tools.sm_exceptions import recarray_warning
+            warnings.warn(recarray_warning, FutureWarning)
+
             descr = x.dtype.descr
             x = pd.DataFrame.from_records(x)
         elif isinstance(x, pd.Series):
@@ -141,7 +152,7 @@ def add_lag(x, col=None, lags=1, drop=False, insert=True):
 
     Parameters
     ----------
-    x : array
+    x : array_like
         An array or NumPy ndarray subclass. Can be either a 1d or 2d array with
         observations in columns.
     col : 'string', int, or None
@@ -215,7 +226,7 @@ def add_lag(x, col=None, lags=1, drop=False, insert=True):
             else:
                 last_names.pop(last_names.index(col))
 
-        if first_names: # only do this if x isn't "empty"
+        if first_names: # only do this if x is not "empty"
             # Workaround to avoid NumPy FutureWarning
             _x = recarray_select(x, first_names)
             first_arr = nprf.append_fields(_x[lags:], tmp_names, ndlags.T,
@@ -273,23 +284,23 @@ def add_lag(x, col=None, lags=1, drop=False, insert=True):
 
 def detrend(x, order=1, axis=0):
     """
-    Detrend an array with a trend of given order along axis 0 or 1
+    Detrend an array with a trend of given order along axis 0 or 1.
 
     Parameters
     ----------
     x : array_like, 1d or 2d
-        data, if 2d, then each row or column is independently detrended with the
-        same trendorder, but independent trend estimates
+        Data, if 2d, then each row or column is independently detrended with
+        the same trendorder, but independent trend estimates.
     order : int
-        specifies the polynomial order of the trend, zero is constant, one is
-        linear trend, two is quadratic trend
+        The polynomial order of the trend, zero is constant, one is
+        linear trend, two is quadratic trend.
     axis : int
-        axis can be either 0, observations by rows,
-        or 1, observations by columns
+        Axis can be either 0, observations by rows, or 1, observations by
+        columns.
 
     Returns
     -------
-    detrended data series : ndarray
+    ndarray
         The detrended series is the residual of the linear regression of the
         data on the trend of given order.
     """
@@ -318,36 +329,46 @@ def detrend(x, order=1, axis=0):
 
 def lagmat(x, maxlag, trim='forward', original='ex', use_pandas=False):
     """
-    Create 2d array of lags
+    Create 2d array of lags.
 
     Parameters
     ----------
-    x : array_like, 1d or 2d
-        data; if 2d, observation in rows and variables in columns
+    x : array_like
+        Data; if 2d, observation in rows and variables in columns.
     maxlag : int
-        all lags from zero to maxlag are included
-    trim : str {'forward', 'backward', 'both', 'none'} or None
-        * 'forward' : trim invalid observations in front
-        * 'backward' : trim invalid initial observations
-        * 'both' : trim invalid observations on both sides
-        * 'none', None : no trimming of observations
-    original : str {'ex','sep','in'}
+        All lags from zero to maxlag are included.
+    trim : {'forward', 'backward', 'both', 'none', None}
+        The trimming method to use.
+
+        * 'forward' : trim invalid observations in front.
+        * 'backward' : trim invalid initial observations.
+        * 'both' : trim invalid observations on both sides.
+        * 'none', None : no trimming of observations.
+    original : {'ex','sep','in'}
+        How the original is treated.
+
         * 'ex' : drops the original array returning only the lagged values.
         * 'in' : returns the original array and the lagged values as a single
           array.
         * 'sep' : returns a tuple (original array, lagged values). The original
                   array is truncated to have the same number of rows as
                   the returned lagmat.
-    use_pandas : bool, optional
+    use_pandas : bool
         If true, returns a DataFrame when the input is a pandas
         Series or DataFrame.  If false, return numpy ndarrays.
 
     Returns
     -------
-    lagmat : 2d array
-        array with lagged observations
-    y : 2d array, optional
-        Only returned if original == 'sep'
+    lagmat : ndarray
+        The array with lagged observations.
+    y : ndarray, optional
+        Only returned if original == 'sep'.
+
+    Notes
+    -----
+    When using a pandas DataFrame or Series with use_pandas=True, trim can only
+    be 'forward' or 'both' since it is not possible to consistently extend
+    index values.
 
     Examples
     --------
@@ -373,12 +394,6 @@ def lagmat(x, maxlag, trim='forward', original='ex', use_pandas=False):
        [ 5.,  6.,  3.,  4.,  1.,  2.],
        [ 0.,  0.,  5.,  6.,  3.,  4.],
        [ 0.,  0.,  0.,  0.,  5.,  6.]])
-
-    Notes
-    -----
-    When using a pandas DataFrame or Series with use_pandas=True, trim can only
-    be 'forward' or 'both' since it is not possible to consistently extend
-    index values.
     """
     maxlag = int_like(maxlag, 'maxlag')
     use_pandas = bool_like(use_pandas, 'use_pandas')
@@ -445,37 +460,39 @@ def lagmat(x, maxlag, trim='forward', original='ex', use_pandas=False):
 def lagmat2ds(x, maxlag0, maxlagex=None, dropex=0, trim='forward',
               use_pandas=False):
     """
-    Generate lagmatrix for 2d array, columns arranged by variables
+    Generate lagmatrix for 2d array, columns arranged by variables.
 
     Parameters
     ----------
-    x : array_like, 2d
-        2d data, observation in rows and variables in columns
+    x : array_like
+        Data, 2d. Observations in rows and variables in columns.
     maxlag0 : int
-        for first variable all lags from zero to maxlag are included
-    maxlagex : None or int
-        max lag for all other variables all lags from zero to maxlag are included
-    dropex : int (default is 0)
-        exclude first dropex lags from other variables
-        for all variables, except the first, lags from dropex to maxlagex are
-        included
-    trim : string
-        * 'forward' : trim invalid observations in front
-        * 'backward' : trim invalid initial observations
-        * 'both' : trim invalid observations on both sides
-        * 'none' : no trimming of observations
-    use_pandas : bool, optional
+        The first variable all lags from zero to maxlag are included.
+    maxlagex : {None, int}
+        The max lag for all other variables all lags from zero to maxlag are
+        included.
+    dropex : int
+        Exclude first dropex lags from other variables. For all variables,
+        except the first, lags from dropex to maxlagex are included.
+    trim : str
+        The trimming method to use.
+
+        * 'forward' : trim invalid observations in front.
+        * 'backward' : trim invalid initial observations.
+        * 'both' : trim invalid observations on both sides.
+        * 'none' : no trimming of observations.
+    use_pandas : bool
         If true, returns a DataFrame when the input is a pandas
         Series or DataFrame.  If false, return numpy ndarrays.
 
     Returns
     -------
-    lagmat : 2d array
-        array with lagged observations, columns ordered by variable
+    ndarray
+        The array with lagged observations, columns ordered by variable.
 
     Notes
     -----
-    Inefficient implementation for unequal lags, implemented for convenience
+    Inefficient implementation for unequal lags, implemented for convenience.
     """
     maxlag0 = int_like(maxlag0, 'maxlag0')
     maxlagex = int_like(maxlagex, 'maxlagex', optional=True)
@@ -585,7 +602,6 @@ def elimination_matrix(n):
 
     Returns
     -------
-
     """
     n = int_like(n, 'n')
     vech_indices = vec(np.tril(np.ones((n, n))))
@@ -663,7 +679,7 @@ def _ma_transparams(params):
 
     Parameters
     ----------
-    params : array
+    params : ndarray
         The ma coeffecients of an (AR)MA model.
 
     Reference
@@ -688,7 +704,7 @@ def _ma_invtransparams(macoefs):
 
     Parameters
     ----------
-    params : array
+    params : ndarray
         The transformed MA coefficients
     """
     tmp = macoefs.copy()
@@ -804,4 +820,4 @@ def freq_to_period(freq):
 
 __all__ = ['lagmat', 'lagmat2ds','add_trend', 'duplication_matrix',
            'elimination_matrix', 'commutation_matrix',
-           'vec', 'vech', 'unvec', 'unvech']
+           'vec', 'vech', 'unvec', 'unvech', 'freq_to_period']

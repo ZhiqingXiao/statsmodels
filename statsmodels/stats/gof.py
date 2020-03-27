@@ -17,7 +17,7 @@ changes
 2013-02-25 : add chisquare_power, effectsize and "value"
 
 '''
-from statsmodels.compat.python import lrange, string_types
+from statsmodels.compat.python import lrange
 import numpy as np
 from scipy import stats
 
@@ -28,7 +28,7 @@ def powerdiscrepancy(observed, expected, lambd=0.0, axis=0, ddof=0):
     as a measure of discrepancy between observed and expected data.
 
     This contains several goodness-of-fit tests as special cases, see the
-    describtion of lambd, the exponent of the power discrepancy. The pvalue
+    description of lambd, the exponent of the power discrepancy. The pvalue
     is based on the asymptotic chi-square distribution of the test statistic.
 
     freeman_tukey:
@@ -40,7 +40,7 @@ def powerdiscrepancy(observed, expected, lambd=0.0, axis=0, ddof=0):
         Observed values
     e : Iterable
         Expected values
-    lambd : float or string
+    lambd : {float, str}
         * float : exponent `a` for power discrepancy
         * 'loglikeratio': a = 0
         * 'freeman_tukey': a = -0.5
@@ -111,13 +111,11 @@ def powerdiscrepancy(observed, expected, lambd=0.0, axis=0, ddof=0):
     (array([[ 2.89714546,  5.79429093]]), array([[ 0.57518277,  0.21504648]]))
     >>> powerdiscrepancy(np.column_stack((observed,2*observed)), np.column_stack((10*expected,20*expected)), lambd=-1, axis=0)
     (array([[ 2.77258872,  5.54517744]]), array([[ 0.59657359,  0.2357868 ]]))
-
-
     """
     o = np.array(observed)
     e = np.array(expected)
 
-    if not isinstance(lambd, string_types):
+    if not isinstance(lambd, str):
         a = lambd
     else:
         if lambd == 'loglikeratio':
@@ -179,7 +177,7 @@ def gof_chisquare_discrete(distfn, arg, rvs, alpha, msg):
 
     Parameters
     ----------
-    distname : string
+    distname : str
         name of distribution function
     arg : sequence
         parameters of distribution
@@ -250,23 +248,23 @@ def gof_binning_discrete(rvs, distfn, arg, nsupp=20):
 
     Parameters
     ----------
-    rvs : array
+    rvs : ndarray
         sample data
-    distname : string
+    distname : str
         name of distribution function
     arg : sequence
         parameters of distribution
-    nsupp : integer
+    nsupp : int
         number of bins. The algorithm tries to find bins with equal weights.
         depending on the distribution, the actual number of bins can be smaller.
 
     Returns
     -------
-    freq : array
+    freq : ndarray
         empirical frequencies for sample; not normalized, adds up to sample size
-    expfreq : array
+    expfreq : ndarray
         theoretical frequencies according to distribution
-    histsupp : array
+    histsupp : ndarray
         bin boundaries for histogram, (added 1e-8 for numerical robustness)
 
     Notes

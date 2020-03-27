@@ -5,12 +5,13 @@ Hard-coded from R or Stata.  Note that some of the remaining discrepancy vs.
 Stata may be because Stata uses ML by default unless you specifically ask for
 IRLS.
 """
+import os
+
 import numpy as np
 import pandas as pd
-from . import glm_test_resids
-import os
-from statsmodels.api import add_constant, categorical
 
+from statsmodels.api import add_constant, categorical
+from . import glm_test_resids
 
 # Test Precisions
 DECIMAL_4 = 4
@@ -701,19 +702,12 @@ class Lbw(object):
         filename = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "stata_lbw_glm.csv")
 
-        data = pd.read_csv(filename).to_records(index=False)
-        # categorical does not work with pandas
-        data = categorical(data, col='race', drop=True)
+        data = pd.read_csv(filename)
+        dummies = pd.get_dummies(data.race, prefix="race", drop_first=False)
+        data = pd.concat([data, dummies], 1)
         self.endog = data.low
-        design = np.column_stack((
-            data['age'],
-            data['lwt'],
-            data['race_black'],
-            data['race_other'],
-            data['smoke'],
-            data['ptl'],
-            data['ht'],
-            data['ui']))
+        design = data[["age", "lwt", "race_black", "race_other", "smoke",
+                       "ptl", "ht", "ui"]]
         self.exog = add_constant(design, prepend=False)
         # Results for Canonical Logit Link
         self.params = (
@@ -1176,7 +1170,7 @@ class InvGauss(object):
     #    eta = np.dot(X, params)
     #    mu = 1/np.sqrt(eta)
     #    sigma = .5
-    #   This isn't correct.  Errors need to be normally distributed
+    #   This is not correct.  Errors need to be normally distributed
     #   But Y needs to be Inverse Gaussian, so we could build it up
     #   by throwing out data?
     #   Refs:

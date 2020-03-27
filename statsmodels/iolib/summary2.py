@@ -1,9 +1,9 @@
 from statsmodels.compat.python import (lrange, iterkeys, iteritems, lzip,
-                                       reduce, itervalues, zip, string_types,
-                                       range)
+                                       itervalues)
 
 from collections import OrderedDict
 import datetime
+from functools import reduce
 import re
 import textwrap
 
@@ -80,7 +80,7 @@ class Summary(object):
             Users are encouraged to format them before using add_dict.
         ncols: int
             Number of columns of the output table
-        align : string
+        align : str
             Data alignment (l/c/r)
         '''
 
@@ -108,7 +108,7 @@ class Summary(object):
         provided but a results instance is provided, statsmodels attempts
         to construct a useful title automatically.
         '''
-        if isinstance(title, string_types):
+        if isinstance(title, str):
             self.title = title
         else:
             if results is not None:
@@ -128,13 +128,13 @@ class Summary(object):
         results : Model results instance
         alpha : float
             significance level for the confidence intervals (optional)
-        float_formatting: string
+        float_formatting: str
             Float formatting for summary of parameters (optional)
-        title : string
+        title : str
             Title of the summary table (optional)
-        xname : List of strings of length equal to the number of parameters
+        xname : list[str] of length equal to the number of parameters
             Names of the independent variables (optional)
-        yname : string
+        yname : str
             Name of the dependent variable (optional)
         '''
 
@@ -305,7 +305,7 @@ def summary_model(results):
         try:
             out[key] = func(results)
         except (AttributeError, KeyError, NotImplementedError):
-            # NOTE: some models don't have loglike defined (RLM),
+            # NOTE: some models do not have loglike defined (RLM),
             #   so raise NotImplementedError
             pass
     return out
@@ -320,9 +320,9 @@ def summary_params(results, yname=None, xname=None, alpha=.05, use_t=True,
     res : results instance
         some required information is directly taken from the result
         instance
-    yname : string or None
+    yname : {str, None}
         optional name for the endogenous variable, default is "y"
-    xname : list of strings or None
+    xname : {list[str], None}
         optional names for the exogenous variables, default is "var_xx"
     alpha : float
         significance level for the confidence intervals
@@ -393,6 +393,22 @@ def _col_params(result, float_format='%.4f', stars=True):
         res.loc[idx, res.columns[0]] = res.loc[idx, res.columns[0]] + '*'
     # Stack Coefs and Std.Errors
     res = res.iloc[:, :2]
+    res = res.iloc[:, :2]
+    rsquared = rsquared_adj = np.nan
+    if hasattr(result, 'rsquared'):
+        rsquared = result.rsquared
+    if hasattr(result, 'rsquared_adj'):
+        rsquared_adj = result.rsquared_adj
+    r_result = pd.DataFrame({'Basic': [rsquared], 'Adj.': [rsquared_adj]},
+                            index=['R-squared'])
+    if not np.all(np.isnan(np.asarray(r_result))):
+        for col in r_result:
+            r_result[col] = r_result[col].apply(lambda x: float_format % x)
+        try:
+            res = pd.DataFrame(res).append(r_result, sort=True)
+        except TypeError:
+            # TODO: Remove when min pandas >= 0.23
+            res = pd.DataFrame(res).append(r_result)
     res = res.stack()
     res = pd.DataFrame(res)
     res.columns = [str(result.model.endog_names)]
@@ -453,9 +469,9 @@ def summary_col(results, float_format='%.4f', model_names=(), stars=False,
         dict of functions to be applied to results instances to retrieve
         model info. To use specific information for different models, add a
         (nested) info_dict with model name as the key.
-        Example: `info_dict = {"N":..., "R2": ..., "OLS":{"R2":...}}` would
-        only show `R2` for OLS regression models, but additionally `N` for
-        all other results.
+        Example: `info_dict = {"N":lambda x:(x.nobs), "R2": ..., "OLS":{
+        "R2":...}}` would only show `R2` for OLS regression models, but
+        additionally `N` for all other results.
         Default : None (use the info_dict specified in
         result.default_model_infos, if this property exists)
     regressor_order : list[str], optional
@@ -464,7 +480,7 @@ def summary_col(results, float_format='%.4f', model_names=(), stars=False,
     drop_omitted : bool, optional
         Includes regressors that are not specified in regressor_order. If
         False, regressors not specified will be appended to end of the list.
-        If True, only regressors in regressors_list will be included.
+        If True, only regressors in regressor_order will be included.
     """
 
     if not isinstance(results, list):

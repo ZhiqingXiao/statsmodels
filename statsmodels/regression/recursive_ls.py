@@ -8,7 +8,8 @@ License: Simplified-BSD
 import numpy as np
 import pandas as pd
 
-from statsmodels.compat import unicode
+from statsmodels.compat.pandas import Appender
+
 from statsmodels.tools.data import _is_using_pandas
 from statsmodels.tsa.statespace.mlemodel import (
     MLEModel, MLEResults, MLEResultsWrapper, PredictionResults,
@@ -58,7 +59,6 @@ class RecursiveLS(MLEModel):
     .. [*] Durbin, James, and Siem Jan Koopman. 2012.
        Time Series Analysis by State Space Methods: Second Edition.
        Oxford University Press.
-
     """
     def __init__(self, endog, exog, constraints=None, **kwargs):
         # Standardize data
@@ -135,6 +135,12 @@ class RecursiveLS(MLEModel):
     def from_formula(cls, formula, data, subset=None, constraints=None):
         return super(MLEModel, cls).from_formula(formula, data, subset,
                                                  constraints=constraints)
+
+    def _validate_can_fix_params(self, param_names):
+        raise ValueError('Linear constraints on coefficients should be given'
+                         ' using the `constraints` argument in constructing.'
+                         ' the model. Other parameter constraints are not'
+                         ' available in the resursive least squares model.')
 
     def fit(self):
         """
@@ -222,7 +228,7 @@ class RecursiveLS(MLEModel):
         ----------
         params : array_like
             Array of new parameters.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `params` is already transformed. If set to False,
             `transform_params` is called. Default is True..
 
@@ -260,7 +266,7 @@ class RecursiveLSResults(MLEResults):
         super(RecursiveLSResults, self).__init__(
             model, params, filter_results, cov_type, **kwargs)
 
-        # Since we are overriding params with things that aren't MLE params,
+        # Since we are overriding params with things that are not MLE params,
         # need to adjust df's
         q = max(self.loglikelihood_burn, self.k_diffuse_states)
         self.df_model = q - self.model.k_constraints
@@ -344,7 +350,6 @@ class RecursiveLSResults(MLEResults):
         variance is not necessarily equal to unity as the mean need not be
         equal to zero", and he defines an alternative version (which are
         not provided here).
-
         """
         return (self.filter_results.standardized_forecasts_error[0] *
                 self.scale**0.5)
@@ -387,7 +392,6 @@ class RecursiveLSResults(MLEResults):
            Regression Relationships over Time."
            Journal of the Royal Statistical Society.
            Series B (Methodological) 37 (2): 149-92.
-
         """
         d = max(self.nobs_diffuse, self.loglikelihood_burn)
         return (np.cumsum(self.resid_recursive[d:]) /
@@ -425,7 +429,6 @@ class RecursiveLSResults(MLEResults):
            Regression Relationships over Time."
            Journal of the Royal Statistical Society.
            Series B (Methodological) 37 (2): 149-92.
-
         """
         d = max(self.nobs_diffuse, self.loglikelihood_burn)
         numer = np.cumsum(self.resid_recursive[d:]**2)
@@ -467,7 +470,7 @@ class RecursiveLSResults(MLEResults):
 
     @cache_readonly
     def ess(self):
-        """esss"""
+        """ess"""
         if self.k_constant:
             return self.centered_tss - self.ssr
         else:
@@ -499,9 +502,10 @@ class RecursiveLSResults(MLEResults):
         else:
             return self.uncentered_tss / (self.df_resid + self.df_model)
 
+    @Appender(MLEResults.get_prediction.__doc__)
     def get_prediction(self, start=None, end=None, dynamic=False,
                        index=None, **kwargs):
-        # Note: need to override this, because we currently don't support
+        # Note: need to override this, because we currently do not support
         # dynamic prediction or forecasts when there are constraints.
         if start is None:
             start = self.model._index[0]
@@ -511,7 +515,7 @@ class RecursiveLSResults(MLEResults):
             self.model._get_prediction_index(start, end, index))
 
         # Handle `dynamic`
-        if isinstance(dynamic, (bytes, unicode)):
+        if isinstance(dynamic, (bytes, str)):
             dynamic, _, _ = self.model._get_index_loc(dynamic)
 
         if self.model._r_matrix is not None and (out_of_sample or dynamic):
@@ -520,15 +524,15 @@ class RecursiveLSResults(MLEResults):
                                       ' constraints.')
 
         # Perform the prediction
-        # This is a (k_endog x npredictions) array; don't want to squeeze in
+        # This is a (k_endog x npredictions) array; do not want to squeeze in
         # case of npredictions = 1
         prediction_results = self.filter_results.predict(
             start, end + out_of_sample + 1, dynamic, **kwargs)
 
         # Return a new mlemodel.PredictionResults object
-        return PredictionResultsWrapper(PredictionResults(
-            self, prediction_results, row_labels=prediction_index))
-    get_prediction.__doc__ = MLEResults.get_prediction.__doc__
+        res_obj = PredictionResults(self, prediction_results,
+                                    row_labels=prediction_index)
+        return PredictionResultsWrapper(res_obj)
 
     def plot_recursive_coefficient(self, variables=0, alpha=0.05,
                                    legend_loc='upper left', fig=None,
@@ -538,15 +542,15 @@ class RecursiveLSResults(MLEResults):
 
         Parameters
         ----------
-        variables : int or str or iterable of int or string, optional
+        variables : {int, str, list[int], list[str]}, optional
             Integer index or string name of the variable whose coefficient will
             be plotted. Can also be an iterable of integers or strings. Default
             is the first variable.
         alpha : float, optional
             The confidence intervals for the coefficient are (1 - alpha) %
-        legend_loc : string, optional
+        legend_loc : str, optional
             The location of the legend in the plot. Default is upper left.
-        fig : Matplotlib Figure instance, optional
+        fig : Figure, optional
             If given, subplots are created in this figure instead of in a new
             figure. Note that the grid will be created in the provided
             figure using `fig.add_subplot()`.
@@ -689,9 +693,9 @@ class RecursiveLSResults(MLEResults):
         ----------
         alpha : float, optional
             The plotted significance bounds are alpha %.
-        legend_loc : string, optional
+        legend_loc : str, optional
             The location of the legend in the plot. Default is upper left.
-        fig : Matplotlib Figure instance, optional
+        fig : Figure, optional
             If given, subplots are created in this figure instead of in a new
             figure. Note that the grid will be created in the provided
             figure using `fig.add_subplot()`.
@@ -711,7 +715,6 @@ class RecursiveLSResults(MLEResults):
            Regression Relationships over Time."
            Journal of the Royal Statistical Society.
            Series B (Methodological) 37 (2): 149-92.
-
         """
         # Create the plot
         from statsmodels.graphics.utils import _import_mpl, create_mpl_fig
@@ -782,9 +785,9 @@ class RecursiveLSResults(MLEResults):
         ----------
         alpha : float, optional
             The plotted significance bounds are alpha %.
-        legend_loc : string, optional
+        legend_loc : str, optional
             The location of the legend in the plot. Default is upper left.
-        fig : Matplotlib Figure instance, optional
+        fig : Figure, optional
             If given, subplots are created in this figure instead of in a new
             figure. Note that the grid will be created in the provided
             figure using `fig.add_subplot()`.
@@ -811,7 +814,6 @@ class RecursiveLSResults(MLEResults):
            "Critical Values for the Cusumsq Statistic
            in Medium and Large Sized Samples."
            Oxford Bulletin of Economics and Statistics 56 (3): 355-65.
-
         """
         # Create the plot
         from statsmodels.graphics.utils import _import_mpl, create_mpl_fig

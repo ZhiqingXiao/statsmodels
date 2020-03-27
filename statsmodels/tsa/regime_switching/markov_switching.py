@@ -108,11 +108,11 @@ def cy_hamilton_filter_log(initial_probabilities, regime_transition,
 
     Parameters
     ----------
-    initial_probabilities : array
+    initial_probabilities : ndarray
         Array of initial probabilities, shaped (k_regimes,) giving the
         distribution of the regime process at time t = -order where order
         is a nonnegative integer.
-    regime_transition : array
+    regime_transition : ndarray
         Matrix of regime transition probabilities, shaped either
         (k_regimes, k_regimes, 1) or if there are time-varying transition
         probabilities (k_regimes, k_regimes, nobs + order).  Entry [i, j,
@@ -121,24 +121,24 @@ def cy_hamilton_filter_log(initial_probabilities, regime_transition,
         stochastic.  The first order entries and initial_probabilities are
         used to produce the initial joint distribution of dimension order +
         1 at time t=0.
-    conditional_loglikelihoods : array
+    conditional_loglikelihoods : ndarray
         Array of loglikelihoods conditional on the last `order+1` regimes,
         shaped (k_regimes,)*(order + 1) + (nobs,).
 
     Returns
     -------
-    filtered_marginal_probabilities : array
+    filtered_marginal_probabilities : ndarray
         Array containing Pr[S_t=s_t | Y_t] - the probability of being in each
         regime conditional on time t information. Shaped (k_regimes, nobs).
-    predicted_joint_probabilities : array
+    predicted_joint_probabilities : ndarray
         Array containing Pr[S_t=s_t, ..., S_{t-order}=s_{t-order} | Y_{t-1}] -
         the joint probability of the current and previous `order` periods
         being in each combination of regimes conditional on time t-1
         information. Shaped (k_regimes,) * (order + 1) + (nobs,).
-    joint_loglikelihoods : array
+    joint_loglikelihoods : ndarray
         Array of loglikelihoods condition on time t information,
         shaped (nobs,).
-    filtered_joint_probabilities : array
+    filtered_joint_probabilities : ndarray
         Array containing Pr[S_t=s_t, ..., S_{t-order}=s_{t-order} | Y_{t}] -
         the joint probability of the current and previous `order` periods
         being in each combination of regimes conditional on time t
@@ -232,16 +232,16 @@ def cy_kim_smoother_log(regime_transition, predicted_joint_probabilities,
 
     Parameters
     ----------
-    regime_transition : array
+    regime_transition : ndarray
         Matrix of regime transition probabilities, shaped either
         (k_regimes, k_regimes, 1) or if there are time-varying transition
         probabilities (k_regimes, k_regimes, nobs).
-    predicted_joint_probabilities : array
+    predicted_joint_probabilities : ndarray
         Array containing Pr[S_t=s_t, ..., S_{t-order}=s_{t-order} | Y_{t-1}] -
         the joint probability of the current and previous `order` periods
         being in each combination of regimes conditional on time t-1
         information. Shaped (k_regimes,) * (order + 1) + (nobs,).
-    filtered_joint_probabilities : array
+    filtered_joint_probabilities : ndarray
         Array containing Pr[S_t=s_t, ..., S_{t-order}=s_{t-order} | Y_{t}] -
         the joint probability of the current and previous `order` periods
         being in each combination of regimes conditional on time t
@@ -249,12 +249,12 @@ def cy_kim_smoother_log(regime_transition, predicted_joint_probabilities,
 
     Returns
     -------
-    smoothed_joint_probabilities : array
+    smoothed_joint_probabilities : ndarray
         Array containing Pr[S_t=s_t, ..., S_{t-order}=s_{t-order} | Y_T] -
         the joint probability of the current and previous `order` periods
         being in each combination of regimes conditional on all information.
         Shaped (k_regimes,) * (order + 1) + (nobs,).
-    smoothed_marginal_probabilities : array
+    smoothed_marginal_probabilities : ndarray
         Array containing Pr[S_t=s_t | Y_T] - the probability of being in each
         regime conditional on all information. Shaped (k_regimes, nobs).
     """
@@ -377,7 +377,6 @@ class MarkovSwitchingParams(object):
     4
     >>> parameters.k_parameters['exog']
     3
-
     """
     def __init__(self, k_regimes):
         self.k_regimes = k_regimes
@@ -464,9 +463,9 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
     ----------
     endog : array_like
         The endogenous variable.
-    k_regimes : integer
+    k_regimes : int
         The number of regimes.
-    order : integer, optional
+    order : int, optional
         The order of the model describes the dependence of the likelihood on
         previous regimes. This depends on the model in question and should be
         set appropriately by subclasses.
@@ -487,7 +486,6 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
     "State-Space Models with Regime Switching:
     Classical and Gibbs-Sampling Approaches with Applications".
     MIT Press Books. The MIT Press.
-
     """
 
     def __init__(self, endog, k_regimes, order=0, exog_tvtp=None, exog=None,
@@ -546,7 +544,6 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         Notes
         -----
         Only valid if there are not time-varying transition probabilities.
-
         """
         if self.tvtp:
             raise ValueError('Cannot use steady-state initialization when'
@@ -641,7 +638,6 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         It is left-stochastic, meaning that each column sums to one (because
         it is certain that from one regime (j) you will transition to *some
         other regime*).
-
         """
         params = np.array(params, ndmin=1)
         if not self.tvtp:
@@ -666,7 +662,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
 
         Parameters
         ----------
-        params : array
+        params : ndarray
             Parameters at which to form predictions
         start : int, str, or datetime, optional
             Zero-indexed observation number at which to start forecasting,
@@ -679,12 +675,12 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
             have a fixed frequency, end must be an integer index if you
             want out of sample prediction. Default is the last observation in
             the sample.
-        probabilities : string or array_like, optional
+        probabilities : str or array_like, optional
             Specifies the weighting probabilities used in constructing the
             prediction as a weighted average. If a string, can be 'predicted',
             'filtered', or 'smoothed'. Otherwise can be an array of
             probabilities to use. Default is smoothed.
-        conditional: boolean or int, optional
+        conditional : bool or int, optional
             Whether or not to return predictions conditional on current or
             past regimes. If False, returns a single vector of weighted
             predictions. If True or 1, returns predictions conditional on the
@@ -693,7 +689,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
 
         Returns
         -------
-        predict : array
+        predict : ndarray
             Array of out of in-sample predictions and / or out-of-sample
             forecasts.
         """
@@ -788,7 +784,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         ----------
         params : array_like
             Array of parameters at which to perform filtering.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `params` is already transformed. Default is True.
         cov_type : str, optional
             See `fit` for a description of covariance matrix types
@@ -796,7 +792,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         cov_kwds : dict or None, optional
             See `fit` for a description of required keywords for alternative
             covariance estimators
-        return_raw : boolean,optional
+        return_raw : bool,optional
             Whether or not to return only the raw Hamilton filter output or a
             full results object. Default is to return a full results object.
         results_class : type, optional
@@ -880,7 +876,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         ----------
         params : array_like
             Array of parameters at which to perform filtering.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `params` is already transformed. Default is True.
         cov_type : str, optional
             See `fit` for a description of covariance matrix types
@@ -888,7 +884,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         cov_kwds : dict or None, optional
             See `fit` for a description of required keywords for alternative
             covariance estimators
-        return_raw : boolean,optional
+        return_raw : bool,optional
             Whether or not to return only the raw Hamilton filter output or a
             full results object. Default is to return a full results object.
         results_class : type, optional
@@ -913,7 +909,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         self.data.param_names = self.param_names
 
         # Hamilton filter
-        # TODO add option to filter to return logged values so that we don't
+        # TODO add option to filter to return logged values so that we do not
         # need to re-log them for smoother
         names = ['regime_transition', 'initial_probabilities',
                  'conditional_loglikelihoods',
@@ -945,7 +941,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         params : array_like
             Array of parameters at which to evaluate the loglikelihood
             function.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `params` is already transformed. Default is True.
         """
         params = np.array(params, ndmin=1)
@@ -966,7 +962,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         params : array_like
             Array of parameters at which to evaluate the loglikelihood
             function.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `params` is already transformed. Default is True.
         """
         return np.sum(self.loglikeobs(params, transformed))
@@ -980,7 +976,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         params : array_like
             Array of parameters at which to evaluate the score
             function.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `params` is already transformed. Default is True.
         """
         params = np.array(params, ndmin=1)
@@ -996,7 +992,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         params : array_like
             Array of parameters at which to evaluate the score
             function.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `params` is already transformed. Default is True.
         """
         params = np.array(params, ndmin=1)
@@ -1013,7 +1009,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         params : array_like
             Array of parameters at which to evaluate the Hessian
             function.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `params` is already transformed. Default is True.
         """
         params = np.array(params, ndmin=1)
@@ -1032,7 +1028,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         start_params : array_like, optional
             Initial guess of the solution for the loglikelihood maximization.
             If None, the default is given by Model.start_params.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `start_params` is already transformed. Default is
             True.
         cov_type : str, optional
@@ -1060,16 +1056,16 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
             basin-hopping solver supports.
         maxiter : int, optional
             The maximum number of iterations to perform.
-        full_output : boolean, optional
+        full_output : bool, optional
             Set to True to have all available output in the Results object's
             mle_retvals attribute. The output is dependent on the solver.
             See LikelihoodModelResults notes section for more information.
-        disp : boolean, optional
+        disp : bool, optional
             Set to True to print convergence messages.
         callback : callable callback(xk), optional
             Called after each iteration, as callback(xk), where xk is the
             current parameter vector.
-        return_params : boolean, optional
+        return_params : bool, optional
             Whether or not to return only the array of maximizing parameters.
             Default is False.
         em_iter : int, optional
@@ -1090,7 +1086,6 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         Returns
         -------
         MarkovSwitchingResults
-
         """
 
         if start_params is None:
@@ -1151,7 +1146,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         start_params : array_like, optional
             Initial guess of the solution for the loglikelihood maximization.
             If None, the default is given by `start_params`.
-        transformed : boolean, optional
+        transformed : bool, optional
             Whether or not `start_params` is already transformed. Default is
             True.
         cov_type : str, optional
@@ -1168,7 +1163,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
             Set to True to have all available output in the Results object's
             mle_retvals attribute. This includes all intermediate values for
             parameters and loglikelihood values
-        return_params : boolean, optional
+        return_params : bool, optional
             Whether or not to return only the array of maximizing parameters.
             Default is False.
         **kwargs
@@ -1303,10 +1298,10 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         ----------
         reps : int
             Number of random permutations to try.
-        start_params : array, optional
+        start_params : ndarray, optional
             Starting parameter vector. If not given, class-level start
             parameters are used.
-        transformed : boolean, optional
+        transformed : bool, optional
             If `start_params` was provided, whether or not those parameters
             are already transformed. Default is True.
         em_iter : int, optional
@@ -1320,7 +1315,6 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         -----
         This is a private method for finding good starting parameters for MLE
         by scoring, where the defaults have been set heuristically.
-
         """
         if start_params is None:
             start_params = self.start_params
@@ -1422,7 +1416,7 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         -------
         constrained : array_like
             Array of constrained parameters which may be used in likelihood
-            evalation.
+            evaluation.
 
         Notes
         -----
@@ -1472,8 +1466,8 @@ class MarkovSwitching(tsbase.TimeSeriesModel):
         Parameters
         ----------
         constrained : array_like
-            Array of constrained parameters used in likelihood evalution, to be
-            transformed.
+            Array of constrained parameters used in likelihood evaluation, to
+            be transformed.
 
         Returns
         -------
@@ -1531,23 +1525,23 @@ class HamiltonFilterResults(object):
         The dimension of the observation series.
     k_regimes : int
         The number of unobserved regimes.
-    regime_transition : array
+    regime_transition : ndarray
         The regime transition matrix.
     initialization : str
         Initialization method for regime probabilities.
-    initial_probabilities : array
+    initial_probabilities : ndarray
         Initial regime probabilities
-    conditional_loglikelihoods : array
+    conditional_loglikelihoods : ndarray
         The loglikelihood values at each time period, conditional on regime.
-    predicted_joint_probabilities : array
+    predicted_joint_probabilities : ndarray
         Predicted joint probabilities at each time period.
-    filtered_marginal_probabilities : array
+    filtered_marginal_probabilities : ndarray
         Filtered marginal probabilities at each time period.
-    filtered_joint_probabilities : array
+    filtered_joint_probabilities : ndarray
         Filtered joint probabilities at each time period.
-    joint_loglikelihoods : array
+    joint_loglikelihoods : ndarray
         The likelihood values at each time period.
-    llf_obs : array
+    llf_obs : ndarray
         The loglikelihood values at each time period.
     """
     def __init__(self, model, result):
@@ -1651,11 +1645,11 @@ class MarkovSwitchingResults(tsbase.TimeSeriesModelResults):
     ----------
     model : MarkovSwitching instance
         The fitted model instance
-    params : array
+    params : ndarray
         Fitted parameters
     filter_results : HamiltonFilterResults or KimSmootherResults instance
         The underlying filter and, optionally, smoother output
-    cov_type : string
+    cov_type : str
         The type of covariance matrix estimator to use. Can be one of 'approx',
         'opg', 'robust', or 'none'.
 
@@ -1667,11 +1661,10 @@ class MarkovSwitchingResults(tsbase.TimeSeriesModelResults):
         The underlying filter and, optionally, smoother output
     nobs : float
         The number of observations used to fit the model.
-    params : array
+    params : ndarray
         The parameters of the model.
     scale : float
         This is currently set to 1.0 and not used by the model or its results.
-
     """
     use_t = False
 
@@ -1934,12 +1927,12 @@ class MarkovSwitchingResults(tsbase.TimeSeriesModelResults):
             have a fixed frequency, end must be an integer index if you
             want out of sample prediction. Default is the last observation in
             the sample.
-        probabilities : string or array_like, optional
+        probabilities : str or array_like, optional
             Specifies the weighting probabilities used in constructing the
             prediction as a weighted average. If a string, can be 'predicted',
             'filtered', or 'smoothed'. Otherwise can be an array of
             probabilities to use. Default is smoothed.
-        conditional: boolean or int, optional
+        conditional : bool or int, optional
             Whether or not to return predictions conditional on current or
             past regimes. If False, returns a single vector of weighted
             predictions. If True or 1, returns predictions conditional on the
@@ -1948,7 +1941,7 @@ class MarkovSwitchingResults(tsbase.TimeSeriesModelResults):
 
         Returns
         -------
-        predict : array
+        predict : ndarray
             Array of out of in-sample predictions and / or out-of-sample
             forecasts. An (npredict x k_endog) array.
         """
@@ -1973,7 +1966,7 @@ class MarkovSwitchingResults(tsbase.TimeSeriesModelResults):
 
         Returns
         -------
-        forecast : array
+        forecast : ndarray
             Array of out of sample forecasts. A (steps x k_endog) array.
         """
         raise NotImplementedError
@@ -1991,9 +1984,9 @@ class MarkovSwitchingResults(tsbase.TimeSeriesModelResults):
             Integer of the start observation. Default is 0.
         title : str, optional
             The title of the summary table.
-        model_name : string
+        model_name : str
             The name of the model used. Default is to use model class name.
-        display_params : boolean, optional
+        display_params : bool, optional
             Whether or not to display tables of estimated parameters. Default
             is True. Usually only used internally.
 

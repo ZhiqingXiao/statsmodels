@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 # flake8: noqa
+import os
+
 from . import iolib
 from . import datasets
 from . import tools
@@ -45,23 +47,12 @@ from .multivariate import api as multivariate
 
 from .formula import api as formula
 
-from .iolib.smpickle import load_pickle as load
+from .iolib.smpickle import load_pickle
 
 from .tools.print_version import show_versions
 from .tools.web import webdoc
 
-import os
-chmpath = os.path.join(os.path.dirname(__file__), 'statsmodelsdoc.chm')
-if os.path.exists(chmpath):
-    # As of 0.10.0, this is not reached.  See GH#5134
-
-    def open_help(chmpath=chmpath):
-        from subprocess import Popen
-
-        p = Popen(chmpath, shell=True)
-
-del os
-del chmpath
+load = load_pickle
 
 from ._version import get_versions
 __version__ = get_versions()['version']

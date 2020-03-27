@@ -20,7 +20,6 @@
 #
 # ## Loading modules and functions
 
-from __future__ import print_function
 import numpy as np  # noqa:F401  needed in namespace for patsy
 import statsmodels.api as sm
 
@@ -35,7 +34,7 @@ from statsmodels.formula.api import ols
 
 sm.formula.ols
 
-# Or you can use the following conventioin
+# Or you can use the following convention
 
 import statsmodels.formula.api as smf
 

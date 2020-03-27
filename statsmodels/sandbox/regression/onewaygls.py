@@ -52,7 +52,6 @@ Created on Sat Mar 27 01:48:01 2010
 Author: josef-pktd
 """
 import numpy as np
-from statsmodels.compat.python import zip
 from scipy import stats
 from statsmodels.regression.linear_model import OLS, WLS
 
@@ -319,7 +318,7 @@ Alternative model: all coefficients are allowed to be different'
 not verified but looks close to f-test result'
 
 
-Ols parameters by group from individual, separate ols regressions'
+OLS parameters by group from individual, separate ols regressions'
 %(olsbg)s
 for group in sorted(res.olsbygroup):
     r = res.olsbygroup[group]

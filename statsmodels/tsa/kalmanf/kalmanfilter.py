@@ -172,7 +172,7 @@ class KalmanFilter(object):
         if arma_model.transparams:
             newparams = arma_model._transparams(params)
         else:
-            newparams = params  # don't need a copy if not modified.
+            newparams = params  # do not need a copy if not modified.
 
         if k > 0:
             y -= np.dot(arma_model.exog, newparams[:k])
@@ -192,7 +192,7 @@ class KalmanFilter(object):
 
         Parameters
         ----------
-        params : array
+        params : ndarray
             The coefficients of the ARMA model, assumed to be in the order of
             trend variables and `k` exogenous coefficients, the `p` AR
             coefficients, then the `q` MA coefficients.
@@ -211,7 +211,7 @@ class KalmanFilter(object):
         """
         # TODO: see section 3.4.6 in Harvey for computing the derivatives in
         # the recursion itself.
-        # TODO: this won't work for time-varying parameters
+        # TODO: this will not work for time-varying parameters
         (y, k, nobs, k_ar, k_ma, k_lags, newparams, Z_mat, m, R_mat, T_mat,
          paramsdtype) = cls._init_kalman_state(params, arma_model)
         if np.issubdtype(paramsdtype, np.float64):

@@ -1,14 +1,13 @@
 '''tests for some time series analysis functions
 
 '''
-from statsmodels.compat.python import zip
+from statsmodels.compat.pandas import assert_frame_equal, assert_series_equal
 
 import pytest
 import numpy as np
 from numpy.testing import (assert_array_almost_equal, assert_equal,
     assert_raises, assert_array_equal)
 import pandas as pd
-from pandas.util.testing import assert_frame_equal, assert_series_equal
 
 import statsmodels.api as sm
 import statsmodels.tsa.stattools as tsa
@@ -486,19 +485,21 @@ class TestAddTrend(object):
 
     def test_recarray(self):
         recarray = pd.DataFrame(self.arr_2d).to_records(index=False)
-        appended = tools.add_trend(recarray)
+        with pytest.warns(FutureWarning, match="recarray support"):
+            appended = tools.add_trend(recarray)
         expected = pd.DataFrame(self.arr_2d)
         expected['const'] = self.c
         expected = expected.to_records(index=False)
         assert_equal(expected, appended)
-
-        prepended = tools.add_trend(recarray, prepend=True)
+        with pytest.warns(FutureWarning, match="recarray support"):
+            prepended = tools.add_trend(recarray, prepend=True)
         expected = pd.DataFrame(self.arr_2d)
         expected.insert(0, 'const', self.c)
         expected = expected.to_records(index=False)
         assert_equal(expected, prepended)
 
-        appended = tools.add_trend(recarray, trend='ctt')
+        with pytest.warns(FutureWarning, match="recarray support"):
+            appended = tools.add_trend(recarray, trend='ctt')
         expected = pd.DataFrame(self.arr_2d)
         expected['const'] = self.c
         expected['trend'] = self.t
@@ -531,7 +532,8 @@ class TestAddTrend(object):
     def test_mixed_recarray(self):
         dt = np.dtype([('c0', np.float64), ('c1', np.int8), ('c2', 'S4')])
         ra = np.array([(1.0, 1, 'aaaa'), (1.1, 2, 'bbbb')], dtype=dt).view(np.recarray)
-        added = tools.add_trend(ra, trend='ct')
+        with pytest.warns(FutureWarning, match="recarray support"):
+            added = tools.add_trend(ra, trend='ct')
         dt = np.dtype([('c0', np.float64), ('c1', np.int8), ('c2', 'S4'), ('const', np.float64), ('trend', np.float64)])
         expected = np.array([(1.0, 1, 'aaaa', 1.0, 1.0), (1.1, 2, 'bbbb', 1.0, 2.0)], dtype=dt).view(np.recarray)
         assert_equal(added, expected)
@@ -548,14 +550,28 @@ class TestAddTrend(object):
         assert_equal(tools.add_trend(self.arr_1d, trend='ct'), base[:, :3])
         assert_equal(tools.add_trend(self.arr_1d, trend='ctt'), base)
 
-        base = np.hstack((self.c[:, None], self.t[:, None], self.t[:, None] ** 2, self.arr_2d))
-        assert_equal(tools.add_trend(self.arr_2d, prepend=True), base[:, [0, 3, 4]])
-        assert_equal(tools.add_trend(self.arr_2d, trend='t', prepend=True), base[:, [1, 3, 4]])
-        assert_equal(tools.add_trend(self.arr_2d, trend='ct', prepend=True), base[:, [0, 1, 3, 4]])
-        assert_equal(tools.add_trend(self.arr_2d, trend='ctt', prepend=True), base)
+        base = np.hstack((self.c[:, None],
+                          self.t[:, None],
+                          self.t[:, None] ** 2,
+                          self.arr_2d))
+        assert_equal(tools.add_trend(self.arr_2d, prepend=True),
+                     base[:, [0, 3, 4]])
+        assert_equal(tools.add_trend(self.arr_2d, trend='t', prepend=True),
+                     base[:, [1, 3, 4]])
+        assert_equal(tools.add_trend(self.arr_2d, trend='ct', prepend=True),
+                     base[:, [0, 1, 3, 4]])
+        assert_equal(tools.add_trend(self.arr_2d, trend='ctt', prepend=True),
+                     base)
 
     def test_unknown_trend(self):
-        assert_raises(ValueError, tools.add_trend, x=self.arr_1d, trend='unknown')
+        assert_raises(ValueError, tools.add_trend, x=self.arr_1d,
+                      trend='unknown')
+
+    def test_trend_n(self):
+        assert_equal(tools.add_trend(self.arr_1d, 'n'), self.arr_1d)
+        assert tools.add_trend(self.arr_1d, 'n') is not self.arr_1d
+        assert_equal(tools.add_trend(self.arr_2d, 'n'), self.arr_2d)
+        assert tools.add_trend(self.arr_2d, 'n') is not self.arr_2d
 
 
 class TestLagmat2DS(object):

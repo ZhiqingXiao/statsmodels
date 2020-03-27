@@ -1,4 +1,3 @@
-from statsmodels.compat.python import range
 
 from statsmodels.tsa.arima_model import ARMA
 from unittest import TestCase
@@ -142,7 +141,7 @@ def _manual_arma_generate_sample(ar, ma, eta):
 
 @pytest.mark.parametrize('ar', arlist)
 @pytest.mark.parametrize('ma', malist)
-@pytest.mark.parametrize('dist', [np.random.randn])
+@pytest.mark.parametrize('dist', [np.random.standard_normal])
 def test_arma_generate_sample(dist, ar, ma):
     # Test that this generates a true ARMA process
     # (amounts to just a test that scipy.signal.lfilter does what we want)

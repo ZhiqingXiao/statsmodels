@@ -11,6 +11,7 @@ from collections import defaultdict
 import numpy as np
 
 from statsmodels.compat.python import lzip
+from statsmodels.compat.pandas import Appender
 from statsmodels.graphics._regressionplots_doc import _plot_influence_doc
 from statsmodels.regression.linear_model import OLS
 from statsmodels.stats.multitest import multipletests
@@ -146,7 +147,7 @@ def reset_ramsey(res, degree=5):
     return res_aux.f_test(r_matrix)  # , r_matrix, res_aux
 
 
-def variance_inflation_factor(exog, exog_idx, hasconst=None):
+def variance_inflation_factor(exog, exog_idx):
     """variance inflation factor, VIF, for one exogenous variable
 
     The variance inflation factor is a measure for the increase of the
@@ -166,12 +167,7 @@ def variance_inflation_factor(exog, exog_idx, hasconst=None):
         regression
     exog_idx : int
         index of the exogenous variable in the columns of exog
-    hasconst : None or bool
-        indicates whether the exog includes a user-supplied constant. If True,
-        a constant is not checked for and k_constant is set to 1 and all result
-        statistics are calculated as if a constant is present. If False, a
-        constant is not checked for and k_constant is set to 0.
-    
+
     Returns
     -------
     vif : float
@@ -183,18 +179,17 @@ def variance_inflation_factor(exog, exog_idx, hasconst=None):
 
     See Also
     --------
-    xxx : class for regression diagnostics  TODO: doesn't exist yet
+    xxx : class for regression diagnostics  TODO: does not exist yet
 
     References
     ----------
     https://en.wikipedia.org/wiki/Variance_inflation_factor
-
     """
     k_vars = exog.shape[1]
     x_i = exog[:, exog_idx]
     mask = np.arange(k_vars) != exog_idx
     x_noti = exog[:, mask]
-    r_squared_i = OLS(x_i, x_noti, hasconst=hasconst).fit().rsquared
+    r_squared_i = OLS(x_i, x_noti).fit().rsquared
     vif = 1. / (1. - r_squared_i)
     return vif
 
@@ -203,6 +198,7 @@ class _BaseInfluenceMixin(object):
     """common methods between OLSInfluence and MLE/GLMInfluence
     """
 
+    @Appender(_plot_influence_doc.format(**{'extra_params_doc': ""}))
     def plot_influence(self, external=None, alpha=.05, criterion="cooks",
                        size=48, plot_alpha=.75, ax=None, **kwargs):
 
@@ -214,9 +210,6 @@ class _BaseInfluenceMixin(object):
                               criterion=criterion, size=size,
                               plot_alpha=plot_alpha, ax=ax, **kwargs)
         return res
-
-    plot_influence.__doc__ = _plot_influence_doc.format({
-        'extra_params_doc': ""})
 
     def _plot_index(self, y, ylabel, threshold=None, title=None, ax=None,
                     **kwds):
@@ -254,7 +247,7 @@ class _BaseInfluenceMixin(object):
 
         Parameters
         ----------
-        y_var : string
+        y_var : str
             Name of attribute or shortcut for predefined attributes that will
             be plotted on the y-axis.
         threshold : None or float
@@ -262,17 +255,16 @@ class _BaseInfluenceMixin(object):
             Observations for which the absolute value of the y_var is larger
             than the threshold will be annotated. Set to a negative number to
             label all observations or to a large number to have no annotation.
-        title : string
+        title : str
             If provided, the title will replace the default "Index Plot" title.
         ax : matplolib axis instance
             The plot will be added to the `ax` if provided, otherwise a new
             figure is created.
-        idx : None or integer
+        idx : {None, int}
             Some attributes require an additional index to select the y-var.
             In dfbetas this refers to the column indes.
         kwds : optional keywords
             Keywords will be used in the call to matplotlib scatter function.
-
         """
         criterion = y_var  # alias
         if threshold is None:
@@ -364,8 +356,6 @@ class MLEInfluence(_BaseInfluenceMixin):
     This class will need changes to support different kinds of models, e.g.
     extra parameters in discrete.NegativeBinomial or two-part models like
     ZeroInflatedPoisson.
-
-
     """
 
     def __init__(self, results, resid=None, endog=None, exog=None,
@@ -393,7 +383,6 @@ class MLEInfluence(_BaseInfluenceMixin):
         """Diagonal of the generalized leverage
 
         This is the analogue of the hat matrix diagonal for general MLE.
-
         """
         if hasattr(self, '_hat_matrix_diag'):
             return self._hat_matrix_diag
@@ -449,7 +438,6 @@ class MLEInfluence(_BaseInfluenceMixin):
         Warning: The definition of p-values might change if we switch to using
         chi-square distribution instead of F-distribution, or if we make it
         dependent on the fit keyword use_t.
-
         """
         cooks_d2 = (self.d_params * np.linalg.solve(self.cov_params,
                                                     self.d_params.T).T).sum(1)
@@ -532,7 +520,6 @@ class MLEInfluence(_BaseInfluenceMixin):
           `hat_matrix_diag`
         * dffits_internal : DFFITS statistics using internally Studentized
           residuals defined in `d_fittedvalues_scaled`
-
         """
         from pandas import DataFrame
 
@@ -548,7 +535,7 @@ class MLEInfluence(_BaseInfluenceMixin):
             hat_diag=self.hat_matrix_diag,
             dffits_internal=self.d_fittedvalues_scaled),
             index=row_labels)
-        # NOTE: if we don't give columns, order of above will be arbitrary
+        # NOTE: if we do not give columns, order of above will be arbitrary
         dfbeta = DataFrame(self.dfbetas, columns=beta_labels,
                            index=row_labels)
 
@@ -575,13 +562,12 @@ class OLSInfluence(_BaseInfluenceMixin):
     is not too large. One possible approach for LOOO measures would be to
     identify possible problem observations with the _internal measures, and
     then run the leave-one-observation-out only with observations that are
-    possible outliers. (However, this is not yet available in an automized way.)
+    possible outliers. (However, this is not yet available in an automated way.)
 
     This should be extended to general least squares.
 
     The leave-one-variable-out (LOVO) auxiliary regression are currently not
     used.
-
     """
 
     def __init__(self, results):
@@ -697,7 +683,6 @@ class OLSInfluence(_BaseInfluenceMixin):
         where resid are the residuals from the regression, sigma is an
         estimate of the standard deviation of the residuals, and hii is the
         diagonal of the hat_matrix.
-
         """
         hii = self.hat_matrix_diag
         if sigma is None:
@@ -740,7 +725,6 @@ class OLSInfluence(_BaseInfluenceMixin):
 
         based on resid_studentized_internal
         uses original results, no nobs loop
-
         """
         # TODO: do I want to use different sigma estimate in
         #      resid_studentized_external
@@ -769,7 +753,6 @@ class OLSInfluence(_BaseInfluenceMixin):
         References
         ----------
         `Wikipedia <https://en.wikipedia.org/wiki/DFFITS>`_
-
         """
         # TODO: do I want to use different sigma estimate in
         #      resid_studentized_external
@@ -832,9 +815,8 @@ class OLSInfluence(_BaseInfluenceMixin):
         This uses determinant of the estimate of the parameter covariance
         from leave-one-out estimates.
         requires leave one out loop for observations
-
         """
-        # don't use inplace division / because then we change original
+        # do not use inplace division / because then we change original
         cov_ratio = (self.det_cov_params_not_obsi
                      / np.linalg.det(self.results.cov_params()))
         return cov_ratio
@@ -848,7 +830,6 @@ class OLSInfluence(_BaseInfluenceMixin):
            sigma2 = sigma2_OLS * (1 - hii)
 
         where hii is the diagonal of the hat matrix
-
         """
         # TODO:check if correct outside of ols
         return self.scale * (1 - self.hat_matrix_diag)
@@ -860,7 +841,6 @@ class OLSInfluence(_BaseInfluenceMixin):
         See Also
         --------
         resid_var
-
         """
         return np.sqrt(self.resid_var)
 
@@ -925,7 +905,7 @@ class OLSInfluence(_BaseInfluenceMixin):
 
         Parameters
         ----------
-        attributes : list of strings
+        attributes : list[str]
            These are the names of the attributes of the auxiliary OLS results
            instance that are stored and returned.
 
@@ -1021,7 +1001,7 @@ class OLSInfluence(_BaseInfluenceMixin):
             dffits=self.dffits[0],
         ),
             index=row_labels)
-        # NOTE: if we don't give columns, order of above will be arbitrary
+        # NOTE: if we do not give columns, order of above will be arbitrary
         dfbeta = DataFrame(self.dfbetas, columns=beta_labels,
                            index=row_labels)
 
@@ -1042,9 +1022,6 @@ class OLSInfluence(_BaseInfluenceMixin):
         Notes
         -----
         This also attaches table_data to the instance.
-
-
-
         """
         # print self.dfbetas
 
@@ -1098,7 +1075,7 @@ def summary_table(res, alpha=0.05):
        table with results that can be printed
     data : ndarray
        calculated measures and statistics for the table
-    ss2 : list of strings
+    ss2 : list[str]
        column_names for table (Note: rows of table are observations)
     """
 

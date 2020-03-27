@@ -1,11 +1,9 @@
 """
 Tests of save / load / remove_data state space functionality.
 """
-
-from statsmodels.compat import cPickle
-
-import tempfile
+import pickle
 import os
+import tempfile
 
 import pytest
 
@@ -13,6 +11,8 @@ from statsmodels import datasets
 from statsmodels.tsa.statespace import (sarimax, structural, varmax,
                                         dynamic_factor)
 from numpy.testing import assert_allclose
+
+current_path = os.path.dirname(os.path.abspath(__file__))
 macrodata = datasets.macrodata.load_pandas().data
 
 
@@ -41,7 +41,7 @@ def test_sarimax(temp_filename):
 
 def test_sarimax_pickle():
     mod = sarimax.SARIMAX(macrodata['realgdp'].values, order=(4, 1, 0))
-    pkl_mod = cPickle.loads(cPickle.dumps(mod))
+    pkl_mod = pickle.loads(pickle.dumps(mod))
 
     res = mod.smooth(mod.start_params)
     pkl_res = pkl_mod.smooth(mod.start_params)
@@ -66,7 +66,7 @@ def test_structural(temp_filename):
 def test_structural_pickle():
     mod = structural.UnobservedComponents(
         macrodata['realgdp'].values, 'llevel')
-    pkl_mod = cPickle.loads(cPickle.dumps(mod))
+    pkl_mod = pickle.loads(pickle.dumps(mod))
 
     res = mod.smooth(mod.start_params)
     pkl_res = pkl_mod.smooth(pkl_mod.start_params)
@@ -93,7 +93,7 @@ def test_dynamic_factor_pickle(temp_filename):
     mod = varmax.VARMAX(
         macrodata[['realgdp', 'realcons']].diff().iloc[1:].values,
         order=(1, 0))
-    pkl_mod = cPickle.loads(cPickle.dumps(mod))
+    pkl_mod = pickle.loads(pickle.dumps(mod))
 
     res = mod.smooth(mod.start_params)
     pkl_res = pkl_mod.smooth(mod.start_params)
@@ -135,3 +135,9 @@ def test_varmax_pickle(temp_filename):
     assert_allclose(res.params, res2.params)
     assert_allclose(res.bse, res2.bse)
     assert_allclose(res.llf, res2.llf)
+
+
+def test_existing_pickle():
+    pkl_file = os.path.join(current_path, 'results', 'sm-0.9-sarimax.pkl')
+    loaded = sarimax.SARIMAXResults.load(pkl_file)
+    assert isinstance(loaded, sarimax.SARIMAXResultsWrapper)

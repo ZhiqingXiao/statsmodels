@@ -2,7 +2,7 @@
 Test functions for models.regression
 """
 # TODO: Test for LM
-from statsmodels.compat.python import long, lrange
+from statsmodels.compat.python import lrange
 import warnings
 import pandas
 import numpy as np
@@ -113,7 +113,7 @@ class CheckRegressionResults(object):
 
     decimal_fvalue = DECIMAL_4
     def test_fvalue(self):
-        # didn't change this, not sure it should complain -inf not equal -inf
+        # did not change this, not sure it should complain -inf not equal -inf
         # if not (np.isinf(self.res1.fvalue) and np.isinf(self.res2.fvalue)):
         assert_almost_equal(self.res1.fvalue, self.res2.fvalue,
                             self.decimal_fvalue)
@@ -368,7 +368,6 @@ class TestTtest(object):
     """
     Test individual t-tests.  Ie., are the coefficients significantly
     different than zero.
-
         """
     @classmethod
     def setup_class(cls):
@@ -527,7 +526,7 @@ class TestGLS_alt_sigma(CheckRegressionResults):
         assert_raises(ValueError, GLS, self.endog, self.exog,
                       sigma=np.ones((n-1, n-1)))
 
-# FIXME: don't leave commented-out, use or move/remove
+# FIXME: do not leave commented-out, use or move/remove
 #    def check_confidenceintervals(self, conf1, conf2):
 #        assert_almost_equal(conf1, conf2, DECIMAL_4)
 
@@ -691,7 +690,7 @@ class TestNonFit(object):
 
     def test_df_resid(self):
         df_resid = self.endog.shape[0] - self.exog.shape[1]
-        assert_equal(self.ols_model.df_resid, long(9))
+        assert_equal(self.ols_model.df_resid, 9)
 
 
 class TestWLS_CornerCases(object):
@@ -821,7 +820,7 @@ class TestGLS_OLS(CheckRegressionResults):
         assert_almost_equal(conf1, conf2(), DECIMAL_4)
 
 
-# FIXME: don't leave this commented-out sitting here
+# FIXME: do not leave this commented-out sitting here
 # TODO: test AR
 # why the two-stage in AR?
 # class TestAR(object):
@@ -1072,7 +1071,7 @@ class TestRegularizedFit(object):
                 rslt = mod.fit_regularized(L1_wt=L1_wt, alpha=lam)
                 assert_almost_equal(rslt.params, params, decimal=3)
 
-                # Smoke test for profile likeihood
+                # Smoke test for profile likelihood
                 mod.fit_regularized(L1_wt=L1_wt, alpha=lam,
                                     profile_scale=True)
 
@@ -1344,3 +1343,21 @@ def test_sqrt_lasso():
         # Regression test the parameters
         assert_allclose(rslt.params[0:5], expected_params[refit],
                 rtol=1e-5, atol=1e-5)
+
+
+def test_bool_regressor(reset_randomstate):
+    exog = np.random.randint(0, 2, size=(100, 2)).astype(bool)
+    endog = np.random.standard_normal(100)
+    bool_res = OLS(endog, exog).fit()
+    res = OLS(endog, exog.astype(np.double)).fit()
+    assert_allclose(bool_res.params, res.params)
+
+
+def test_ols_constant(reset_randomstate):
+    y = np.random.standard_normal((200))
+    x = np.ones((200, 1))
+    res = OLS(y, x).fit()
+    with pytest.warns(None) as recording:
+        assert np.isnan(res.fvalue)
+        assert np.isnan(res.f_pvalue)
+    assert len(recording) == 0

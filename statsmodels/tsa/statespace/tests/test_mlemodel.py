@@ -18,7 +18,7 @@ from statsmodels.tsa.statespace import (sarimax, varmax, kalman_filter,
 from statsmodels.tsa.statespace.mlemodel import MLEModel, MLEResultsWrapper
 from statsmodels.datasets import nile
 from numpy.testing import (
-    assert_almost_equal, assert_equal, assert_allclose, assert_raises)
+    assert_, assert_almost_equal, assert_equal, assert_allclose, assert_raises)
 from statsmodels.tsa.statespace.tests.results import (
     results_sarimax, results_var_misc)
 
@@ -45,7 +45,8 @@ def get_dummy_mod(fit=True, pandas=False):
 
     mod = sarimax.SARIMAX(
         endog, exog=exog, order=(0, 0, 0),
-        time_varying_regression=True, mle_regression=False)
+        time_varying_regression=True, mle_regression=False,
+        use_exact_diffuse=True)
 
     if fit:
         with warnings.catch_warnings():
@@ -55,6 +56,79 @@ def get_dummy_mod(fit=True, pandas=False):
         res = None
 
     return mod, res
+
+
+def test_init_matrices_time_invariant():
+    # Test setting state space system matrices in __init__, with time-invariant
+    # matrices
+    k_endog = 2
+    k_states = 3
+    k_posdef = 1
+
+    endog = np.zeros((10, 2))
+    obs_intercept = np.arange(k_endog) * 1.0
+    design = np.reshape(
+        np.arange(k_endog * k_states) * 1.0, (k_endog, k_states))
+    obs_cov = np.reshape(np.arange(k_endog**2) * 1.0, (k_endog, k_endog))
+    state_intercept = np.arange(k_states) * 1.0
+    transition = np.reshape(np.arange(k_states**2) * 1.0, (k_states, k_states))
+    selection = np.reshape(
+        np.arange(k_states * k_posdef) * 1.0, (k_states, k_posdef))
+    state_cov = np.reshape(np.arange(k_posdef**2) * 1.0, (k_posdef, k_posdef))
+
+    mod = MLEModel(endog, k_states=k_states, k_posdef=k_posdef,
+                   obs_intercept=obs_intercept, design=design,
+                   obs_cov=obs_cov, state_intercept=state_intercept,
+                   transition=transition, selection=selection,
+                   state_cov=state_cov)
+
+    assert_allclose(mod['obs_intercept'], obs_intercept)
+    assert_allclose(mod['design'], design)
+    assert_allclose(mod['obs_cov'], obs_cov)
+    assert_allclose(mod['state_intercept'], state_intercept)
+    assert_allclose(mod['transition'], transition)
+    assert_allclose(mod['selection'], selection)
+    assert_allclose(mod['state_cov'], state_cov)
+
+
+def test_init_matrices_time_varying():
+    # Test setting state space system matrices in __init__, with time-varying
+    # matrices
+    nobs = 10
+    k_endog = 2
+    k_states = 3
+    k_posdef = 1
+
+    endog = np.zeros((10, 2))
+    obs_intercept = np.reshape(np.arange(k_endog * nobs) * 1.0,
+                               (k_endog, nobs))
+    design = np.reshape(
+        np.arange(k_endog * k_states * nobs) * 1.0, (k_endog, k_states, nobs))
+    obs_cov = np.reshape(
+        np.arange(k_endog**2 * nobs) * 1.0, (k_endog, k_endog, nobs))
+    state_intercept = np.reshape(
+        np.arange(k_states * nobs) * 1.0, (k_states, nobs))
+    transition = np.reshape(
+        np.arange(k_states**2 * nobs) * 1.0, (k_states, k_states, nobs))
+    selection = np.reshape(
+        np.arange(k_states * k_posdef * nobs) * 1.0,
+        (k_states, k_posdef, nobs))
+    state_cov = np.reshape(
+        np.arange(k_posdef**2 * nobs) * 1.0, (k_posdef, k_posdef, nobs))
+
+    mod = MLEModel(endog, k_states=k_states, k_posdef=k_posdef,
+                   obs_intercept=obs_intercept, design=design,
+                   obs_cov=obs_cov, state_intercept=state_intercept,
+                   transition=transition, selection=selection,
+                   state_cov=state_cov)
+
+    assert_allclose(mod['obs_intercept'], obs_intercept)
+    assert_allclose(mod['design'], design)
+    assert_allclose(mod['obs_cov'], obs_cov)
+    assert_allclose(mod['state_intercept'], state_intercept)
+    assert_allclose(mod['transition'], transition)
+    assert_allclose(mod['selection'], selection)
+    assert_allclose(mod['state_cov'], state_cov)
 
 
 def test_wrapping():
@@ -78,9 +152,9 @@ def test_wrapping():
 
     # Test that we can change the following properties: loglikelihood_burn,
     # initial_variance, tolerance
-    assert_equal(mod.loglikelihood_burn, 1)
-    mod.loglikelihood_burn = 0
-    assert_equal(mod.ssm.loglikelihood_burn, 0)
+    assert_equal(mod.loglikelihood_burn, 0)
+    mod.loglikelihood_burn = 1
+    assert_equal(mod.ssm.loglikelihood_burn, 1)
 
     assert_equal(mod.tolerance, mod.ssm.tolerance)
     mod.tolerance = 0.123
@@ -446,7 +520,7 @@ def check_results(pandas):
     assert_almost_equal(res.resid[2:], np.zeros(mod.nobs-2))
 
     # Test loglikelihood_burn
-    assert_equal(res.loglikelihood_burn, 1)
+    assert_equal(res.loglikelihood_burn, 0)
 
 
 def test_results(pandas=False):
@@ -526,7 +600,7 @@ def test_summary():
 def check_endog(endog, nobs=2, k_endog=1, **kwargs):
     # create the model
     mod = MLEModel(endog, **kwargs)
-    # the data directly available in the model is the Statsmodels version of
+    # the data directly available in the model is the statsmodels version of
     # the data; it should be 2-dim, C-contiguous, long-shaped:
     # (nobs, k_endog) == (2, 1)
     assert_equal(mod.endog.ndim, 2)
@@ -547,7 +621,7 @@ def test_basic_endog():
     # Test various types of basic python endog inputs (e.g. lists, scalars...)
 
     # Check cannot call with non-array_like
-    # fails due to checks in Statsmodels base classes
+    # fails due to checks in statsmodels base classes
     assert_raises(ValueError, MLEModel, endog=1, k_states=1)
     assert_raises(ValueError, MLEModel, endog='a', k_states=1)
     assert_raises(ValueError, MLEModel, endog=True, k_states=1)
@@ -603,7 +677,7 @@ def test_numpy_endog():
 
     # Example  (failure): 0-dim array
     endog = np.array(1.)
-    # raises error due to len(endog) failing in Statsmodels base classes
+    # raises error due to len(endog) failing in statsmodels base classes
     assert_raises(TypeError, check_endog, endog, **kwargs)
 
     # Example : 1-dim array, both C- and F-contiguous, length 2
@@ -661,7 +735,7 @@ def test_numpy_endog():
 
     # Example  (failure): 3-dim array
     endog = np.array([1., 2.]).reshape(2, 1, 1)
-    # raises error due to direct ndim check in Statsmodels base classes
+    # raises error due to direct ndim check in statsmodels base classes
     assert_raises(ValueError, check_endog, endog, **kwargs)
 
     # Example : np.array with 2 columns
@@ -693,7 +767,7 @@ def test_pandas_endog():
 
     # Example : pandas.Series, string datatype
     endog = pd.Series(['a', 'b'], index=dates)
-    # raises error due to direct type casting check in Statsmodels base classes
+    # raises error due to direct type casting check in statsmodels base classes
     assert_raises(ValueError, check_endog, endog, **kwargs)
 
     # Example : pandas.Series
@@ -845,7 +919,7 @@ def test_diagnostics_nile_durbinkoopman():
 @pytest.mark.smoke
 def test_prediction_results():
     # Just smoke tests for the PredictionResults class, which is copied from
-    # elsewhere in Statsmodels
+    # elsewhere in statsmodels
 
     mod, res = get_dummy_mod()
     predict = res.get_prediction()
@@ -943,3 +1017,192 @@ def test_lutkepohl_information_criteria():
     bic = res.info_criteria('bic') - 6 * np.log(res.nobs_effective)
     assert_allclose(aic, true['estat_aic'])
     assert_allclose(bic, true['estat_bic'])
+
+
+def test_append_extend_apply_invalid():
+    # Test for invalid options to append, extend, and apply
+    niledata = nile.data.load_pandas().data['volume']
+    niledata.index = pd.date_range('1871-01-01', '1970-01-01', freq='AS')
+
+    endog1 = niledata.iloc[:20]
+    endog2 = niledata.iloc[20:40]
+
+    mod = sarimax.SARIMAX(endog1, order=(1, 0, 0), concentrate_scale=True)
+    res1 = mod.smooth([0.5])
+
+    assert_raises(ValueError, res1.append, endog2,
+                  fit_kwargs={'cov_type': 'approx'})
+    assert_raises(ValueError, res1.extend, endog2,
+                  fit_kwargs={'cov_type': 'approx'})
+    assert_raises(ValueError, res1.apply, endog2,
+                  fit_kwargs={'cov_type': 'approx'})
+
+    assert_raises(ValueError, res1.append, endog2, fit_kwargs={'cov_kwds': {}})
+    assert_raises(ValueError, res1.extend, endog2, fit_kwargs={'cov_kwds': {}})
+    assert_raises(ValueError, res1.apply, endog2, fit_kwargs={'cov_kwds': {}})
+
+    # Test for exception when given a different frequency
+    wrong_freq = niledata.iloc[20:40]
+    wrong_freq.index = pd.date_range(
+        start=niledata.index[0], periods=len(wrong_freq), freq='MS')
+    message = ('Given `endog` does not have an index that extends the index of'
+               ' the model. Expected index frequency is')
+    with pytest.raises(ValueError, match=message):
+        res1.append(wrong_freq)
+    with pytest.raises(ValueError, match=message):
+        res1.extend(wrong_freq)
+    message = ('Given `exog` does not have an index that extends the index of'
+               ' the model. Expected index frequency is')
+    with pytest.raises(ValueError, match=message):
+        res1.append(endog2, exog=wrong_freq)
+    message = 'The indices for endog and exog are not aligned'
+    with pytest.raises(ValueError, match=message):
+        res1.extend(endog2, exog=wrong_freq)
+
+    # Test for exception when given the same frequency but not right after the
+    # end of model
+    not_cts = niledata.iloc[21:41]
+    message = ('Given `endog` does not have an index that extends the index of'
+               ' the model.$')
+    with pytest.raises(ValueError, match=message):
+        res1.append(not_cts)
+    with pytest.raises(ValueError, match=message):
+        res1.extend(not_cts)
+    message = ('Given `exog` does not have an index that extends the index of'
+               ' the model.$')
+    with pytest.raises(ValueError, match=message):
+        res1.append(endog2, exog=not_cts)
+    message = 'The indices for endog and exog are not aligned'
+    with pytest.raises(ValueError, match=message):
+        res1.extend(endog2, exog=not_cts)
+
+    # # Test for problems with non-date indexes
+    endog3 = pd.Series(niledata.iloc[:20].values)
+    endog4 = pd.Series(niledata.iloc[:40].values)[20:]
+    mod2 = sarimax.SARIMAX(endog3, order=(1, 0, 0), exog=endog3,
+                           concentrate_scale=True)
+    res2 = mod2.smooth([0.2, 0.5])
+
+    # Test for exception when given the same frequency but not right after the
+    # end of model
+    not_cts = pd.Series(niledata[:41].values)[21:]
+    message = ('Given `endog` does not have an index that extends the index of'
+               ' the model.$')
+    with pytest.raises(ValueError, match=message):
+        res2.append(not_cts)
+    with pytest.raises(ValueError, match=message):
+        res2.extend(not_cts)
+    message = ('Given `exog` does not have an index that extends the index of'
+               ' the model.$')
+    with pytest.raises(ValueError, match=message):
+        res2.append(endog4, exog=not_cts)
+    message = 'The indices for endog and exog are not aligned'
+    with pytest.raises(ValueError, match=message):
+        res2.extend(endog4, exog=not_cts)
+
+
+def test_integer_params():
+    # See GH#6335
+    mod = sarimax.SARIMAX([1, 1, 1], order=(1, 0, 0), exog=[2, 2, 2],
+                          concentrate_scale=True)
+    res = mod.filter([1, 0])
+    p = res.predict(end=5, dynamic=True, exog=[3, 3, 4])
+    assert_equal(p.dtype, np.float64)
+
+
+def check_states_index(states, ix, predicted_ix, cols):
+    predicted_cov_ix = pd.MultiIndex.from_product(
+        [predicted_ix, cols]).swaplevel()
+    filtered_cov_ix = pd.MultiIndex.from_product([ix, cols]).swaplevel()
+    smoothed_cov_ix = pd.MultiIndex.from_product([ix, cols]).swaplevel()
+
+    # Predicted
+    assert_(states.predicted.index.equals(predicted_ix))
+    assert_(states.predicted.columns.equals(cols))
+
+    assert_(states.predicted_cov.index.equals(predicted_cov_ix))
+    assert_(states.predicted.columns.equals(cols))
+
+    # Filtered
+    assert_(states.filtered.index.equals(ix))
+    assert_(states.filtered.columns.equals(cols))
+
+    assert_(states.filtered_cov.index.equals(filtered_cov_ix))
+    assert_(states.filtered.columns.equals(cols))
+
+    # Smoothed
+    assert_(states.smoothed.index.equals(ix))
+    assert_(states.smoothed.columns.equals(cols))
+
+    assert_(states.smoothed_cov.index.equals(smoothed_cov_ix))
+    assert_(states.smoothed.columns.equals(cols))
+
+
+def test_states_index_periodindex():
+    nobs = 10
+    ix = pd.period_range(start='2000', periods=nobs, freq='M')
+    endog = pd.Series(np.zeros(nobs), index=ix)
+
+    mod = sarimax.SARIMAX(endog, order=(2, 0, 0))
+    res = mod.smooth([0.5, 0.1, 1.0])
+
+    predicted_ix = pd.period_range(start=ix[0], periods=nobs + 1, freq='M')
+    cols = pd.Index(['state.0', 'state.1'])
+
+    check_states_index(res.states, ix, predicted_ix, cols)
+
+
+def test_states_index_dateindex():
+    nobs = 10
+    ix = pd.date_range(start='2000', periods=nobs, freq='M')
+    endog = pd.Series(np.zeros(nobs), index=ix)
+
+    mod = sarimax.SARIMAX(endog, order=(2, 0, 0))
+    res = mod.smooth([0.5, 0.1, 1.0])
+
+    predicted_ix = pd.date_range(start=ix[0], periods=nobs + 1, freq='M')
+    cols = pd.Index(['state.0', 'state.1'])
+
+    check_states_index(res.states, ix, predicted_ix, cols)
+
+
+def test_states_index_int64index():
+    nobs = 10
+    ix = pd.Int64Index(np.arange(10))
+    endog = pd.Series(np.zeros(nobs), index=ix)
+
+    mod = sarimax.SARIMAX(endog, order=(2, 0, 0))
+    res = mod.smooth([0.5, 0.1, 1.0])
+
+    predicted_ix = pd.Int64Index(np.arange(11))
+    cols = pd.Index(['state.0', 'state.1'])
+
+    check_states_index(res.states, ix, predicted_ix, cols)
+
+
+def test_states_index_rangeindex():
+    nobs = 10
+
+    # Basic range index
+    ix = pd.RangeIndex(10)
+    endog = pd.Series(np.zeros(nobs), index=ix)
+
+    mod = sarimax.SARIMAX(endog, order=(2, 0, 0))
+    res = mod.smooth([0.5, 0.1, 1.0])
+
+    predicted_ix = pd.RangeIndex(11)
+    cols = pd.Index(['state.0', 'state.1'])
+
+    check_states_index(res.states, ix, predicted_ix, cols)
+
+    # More complex range index
+    ix = pd.RangeIndex(2, 32, 3)
+    endog = pd.Series(np.zeros(nobs), index=ix)
+
+    mod = sarimax.SARIMAX(endog, order=(2, 0, 0))
+    res = mod.smooth([0.5, 0.1, 1.0])
+
+    predicted_ix = pd.RangeIndex(2, 35, 3)
+    cols = pd.Index(['state.0', 'state.1'])
+
+    check_states_index(res.states, ix, predicted_ix, cols)

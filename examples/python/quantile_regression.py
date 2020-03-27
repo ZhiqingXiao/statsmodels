@@ -25,7 +25,6 @@
 # We first need to load some modules and to retrieve the data.
 # Conveniently, the Engel dataset is shipped with ``statsmodels``.
 
-from __future__ import print_function
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -112,7 +111,7 @@ ax.set_ylabel(
 #
 # The dotted black lines form 95% point-wise confidence band around 10
 # quantile regression estimates (solid black line). The red lines represent
-# OLS regression results along with their 95% confindence interval.
+# OLS regression results along with their 95% confidence interval.
 #
 # In most cases, the quantile regression point estimates lie outside the
 # OLS confidence interval, which suggests that the effect of income on food

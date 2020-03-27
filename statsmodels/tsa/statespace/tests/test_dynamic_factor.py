@@ -99,7 +99,7 @@ class CheckDynamicFactor(object):
 
     def test_no_enforce(self):
         return
-        # Test that nothing goes wrong when we don't enforce stationarity
+        # Test that nothing goes wrong when we do not enforce stationarity
         params = self.model.untransform_params(self.true['params'])
         params[self.model._params_transition] = (
             self.true['params'][self.model._params_transition])
@@ -183,24 +183,24 @@ class TestDynamicFactor2(CheckDynamicFactor):
             true, k_factors=2, factor_order=1)
 
     def test_mle(self):
-        # Stata's MLE on this model doesn't converge, so no reason to check
+        # Stata's MLE on this model does not converge, so no reason to check
         pass
 
     def test_bse(self):
-        # Stata's MLE on this model doesn't converge, and four of their
-        # params don't even have bse (possibly they are still at starting
+        # Stata's MLE on this model does not converge, and four of their
+        # params do not even have bse (possibly they are still at starting
         # values?), so no reason to check this
         pass
 
     def test_aic(self):
         # Stata uses 9 df (i.e. 9 params) here instead of 13, because since the
-        # model didn't coverge, 4 of the parameters aren't fully estimated
+        # model did not coverge, 4 of the parameters are not fully estimated
         # (possibly they are still at starting values?) so the AIC is off
         pass
 
     def test_bic(self):
         # Stata uses 9 df (i.e. 9 params) here instead of 13, because since the
-        # model didn't coverge, 4 of the parameters aren't fully estimated
+        # model did not coverge, 4 of the parameters are not fully estimated
         # (possibly they are still at starting values?) so the BIC is off
         pass
 
@@ -554,22 +554,22 @@ class TestDynamicFactor_general_errors(CheckDynamicFactor):
         # -> Check that we have the right coefficients
         offset = self.model.k_endog * self.model.k_factors
         assert re.search(
-            'sqrt.var.dln_inv +' + forg(params[offset + 0], prec=4),
+            r'cov.chol\[1,1\] +' + forg(params[offset + 0], prec=4),
             table)
         assert re.search(
-            'sqrt.cov.dln_inv.dln_inc +' + forg(params[offset + 1], prec=4),
+            r'cov.chol\[2,1\] +' + forg(params[offset + 1], prec=4),
             table)
         assert re.search(
-            'sqrt.var.dln_inc +' + forg(params[offset + 2], prec=4),
+            r'cov.chol\[2,2\] +' + forg(params[offset + 2], prec=4),
             table)
         assert re.search(
-            'sqrt.cov.dln_inv.dln_consump +' + forg(params[offset+3], prec=4),
+            r'cov.chol\[3,1\] +' + forg(params[offset+3], prec=4),
             table)
         assert re.search(
-            'sqrt.cov.dln_inc.dln_consump +' + forg(params[offset+4], prec=4),
+            r'cov.chol\[3,2\] +' + forg(params[offset+4], prec=4),
             table)
         assert re.search(
-            'sqrt.var.dln_consump +' + forg(params[offset + 5], prec=4),
+            r'cov.chol\[3,3\] +' + forg(params[offset + 5], prec=4),
             table)
 
 
@@ -702,7 +702,6 @@ class TestSUR_autocorrelated_errors(CheckDynamicFactor):
     """
     Test for a seemingly unrelated regression model (i.e. no factors) where
     the errors are vector autocorrelated, but innovations are uncorrelated.
-
     """
     @classmethod
     def setup_class(cls):
@@ -873,8 +872,8 @@ def test_append_results():
 
     assert_equal(res1.specification, res3.specification)
 
-    for attr in ['nobs', 'llf', 'llf_obs', 'loglikelihood_burn',
-                 'cov_params_default']:
+    assert_allclose(res3.cov_params_default, res2.cov_params_default)
+    for attr in ['nobs', 'llf', 'llf_obs', 'loglikelihood_burn']:
         assert_equal(getattr(res3, attr), getattr(res1, attr))
 
     for attr in [
@@ -951,8 +950,8 @@ def test_apply_results():
 
     assert_equal(res1.specification, res3.specification)
 
-    for attr in ['nobs', 'llf', 'llf_obs', 'loglikelihood_burn',
-                 'cov_params_default']:
+    assert_allclose(res3.cov_params_default, res2.cov_params_default)
+    for attr in ['nobs', 'llf', 'llf_obs', 'loglikelihood_burn']:
         assert_equal(getattr(res3, attr), getattr(res1, attr))
 
     for attr in [
@@ -972,3 +971,18 @@ def test_apply_results():
 
     assert_allclose(res3.forecast(10, exog=np.ones(10)),
                     res1.forecast(10, exog=np.ones(10)))
+
+
+def test_start_params_nans():
+    ix = pd.date_range('1960-01-01', '1982-10-01', freq='QS')
+    dta = np.log(pd.DataFrame(
+        results_varmax.lutkepohl_data, columns=['inv', 'inc', 'consump'],
+        index=ix)).diff().iloc[1:]
+
+    endog1 = dta.iloc[:-1]
+    mod1 = dynamic_factor.DynamicFactor(endog1, k_factors=1, factor_order=1)
+    endog2 = dta.copy()
+    endog2.iloc[-1:] = np.nan
+    mod2 = dynamic_factor.DynamicFactor(endog2, k_factors=1, factor_order=1)
+
+    assert_allclose(mod2.start_params, mod1.start_params)

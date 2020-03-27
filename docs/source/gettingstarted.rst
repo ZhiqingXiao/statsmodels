@@ -15,7 +15,6 @@ few modules and functions:
 
 .. ipython:: python
 
-    from __future__ import print_function
     import statsmodels.api as sm
     import pandas
     from patsy import dmatrices
@@ -29,6 +28,13 @@ comma-separated values file to a ``DataFrame`` object.
 `patsy <https://github.com/pydata/patsy>`_ is a Python library for describing
 statistical models and building `Design Matrices
 <https://en.wikipedia.org/wiki/Design_matrix>`_ using ``R``-like formulas.
+
+.. note::
+
+   This example uses the API interface.  See :ref:`importpaths` for information on
+   the difference between importing the API interfaces (``statsmodels.api`` and
+   ``statsmodels.tsa.api``) and directly importing from the module that defines
+   the model.
 
 Data
 ----
@@ -175,6 +181,17 @@ plot of partial regression for a set of regressors by:
     @savefig gettingstarted_0.png
     sm.graphics.plot_partregress('Lottery', 'Wealth', ['Region', 'Literacy'],
                                  data=df, obs_labels=False)
+
+Documentation
+-------------
+Documentation can be accessed from an IPython session
+using :func:`~statsmodels.tools.web.webdoc`.
+
+.. autosummary::
+   :nosignatures:
+   :toctree: generated/
+
+   ~statsmodels.tools.web.webdoc
 
 More
 ----

@@ -15,8 +15,6 @@ In the case of linear models with no interactions involving the
 mediator, the results should be similar or identical to the earlier
 Barron-Kenny approach.
 """
-from statsmodels.compat.python import string_types
-
 import numpy as np
 import pandas as pd
 from statsmodels.graphics.utils import maybe_name_or_idx
@@ -36,14 +34,14 @@ class Mediation(object):
         Regression model for the mediator variable.  Predictor
         variables include the treatment/exposure and any other
         variables of interest.
-    exposure : string or (int, int) tuple
+    exposure : str or (int, int) tuple
         The name or column position of the treatment/exposure
         variable.  If positions are given, the first integer is the
         column position of the exposure variable in the outcome model
         and the second integer is the position of the exposure variable
         in the mediator model.  If a string is given, it must be the name
         of the exposure variable in both regression models.
-    mediator : string or int
+    mediator : {str, int}
         The name or column position of the mediator variable in the
         outcome regression model.  If None, infer the name from the
         mediator model formula (if present).
@@ -163,7 +161,7 @@ class Mediation(object):
             return maybe_name_or_idx(self.mediator, mod)[1]
 
         exp = self.exposure
-        exp_is_2 = ((len(exp) == 2) and not isinstance(exp, string_types))
+        exp_is_2 = ((len(exp) == 2) and not isinstance(exp, str))
 
         if exp_is_2:
             if model == 'outcome':
@@ -264,9 +262,9 @@ class Mediation(object):
 
         Parameters
         ----------
-        method : string
+        method : str
             Either 'parametric' or 'bootstrap'.
-        n_rep : integer
+        n_rep : int
             The number of simulation replications.
 
         Returns a MediationResults object.

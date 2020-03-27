@@ -213,7 +213,7 @@ def test_glm(constraints=None):
     # used in OLS. Compute new ic based on llf_alternative to compare.
     actual_aic = aic(llf_alternative, res.nobs_effective, res.df_model)
     assert_allclose(actual_aic, res_glm.aic)
-    # See gh#1733 for details on why the BIC doesn't match while AIC does
+    # See gh#1733 for details on why the BIC does not match while AIC does
     # actual_bic = bic(llf_alternative, res.nobs_effective, res.df_model)
     # assert_allclose(actual_bic, res_glm.bic)
 
@@ -472,3 +472,15 @@ def test_multiple_constraints():
     llf_alternative = np.log(norm.pdf(res.resid_recursive, loc=0,
                                       scale=scale_alternative**0.5)).sum()
     assert_allclose(llf_alternative, desired)
+
+
+def test_fix_params():
+    mod = RecursiveLS([0, 1, 0, 1], [1, 1, 1, 1])
+    with pytest.raises(ValueError, match=('Linear constraints on coefficients'
+                                          ' should be given')):
+        with mod.fix_params({'const': 0.1}):
+            mod.fit()
+
+    with pytest.raises(ValueError, match=('Linear constraints on coefficients'
+                                          ' should be given')):
+        mod.fit_constrained({'const': 0.1})

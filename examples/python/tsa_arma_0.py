@@ -9,7 +9,6 @@
 
 # # Autoregressive Moving Average (ARMA): Sunspots data
 
-from __future__ import print_function
 import numpy as np
 from scipy import stats
 import pandas as pd
@@ -19,7 +18,7 @@ import statsmodels.api as sm
 
 from statsmodels.graphics.api import qqplot
 
-# ## Sunpots Data
+# ## Sunspots Data
 
 print(sm.datasets.sunspots.NOTE)
 

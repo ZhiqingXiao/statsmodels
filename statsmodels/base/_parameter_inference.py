@@ -164,8 +164,6 @@ def score_test(self, exog_extra=None, params_constrained=None,
 
     The covariance matrix of the score is the simple empirical covariance of
     score_obs without degrees of freedom correction.
-
-
     """
     # TODO: we are computing unnecessary things for cov_type nonrobust
     model = self.model
@@ -184,8 +182,12 @@ def score_test(self, exog_extra=None, params_constrained=None,
     if exog_extra is None:
 
         if hasattr(self, 'constraints'):
-            k_constraints = self.constraints.coefs.shape[0]
-            r_matrix = self.constraints.coefs
+            if isinstance(self.constraints, tuple):
+                r_matrix = self.constraints[0]
+            else:
+                r_matrix = self.constraints.coefs
+            k_constraints = r_matrix.shape[0]
+
         else:
             if k_constraints is None:
                 raise ValueError('if exog_extra is None, then k_constraints'
@@ -229,7 +231,7 @@ def score_test(self, exog_extra=None, params_constrained=None,
         # cov_score_test_inv = cov_lm_robust(score, r_matrix, hinv,
         #                                   cov_score, cov_params=None)
     elif cov_type.upper() == 'V':
-        # TODO: this doesn't work, V in fit_constrained results is singular
+        # TODO: this does not work, V in fit_constrained results is singular
         # we need cov_params without the zeros in it
         hinv = -np.linalg.inv(hessian)
         cov_score = nobs * np.cov(score_obs.T)

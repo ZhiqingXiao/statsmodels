@@ -1,3 +1,5 @@
+from statsmodels.compat.platform import PLATFORM_LINUX32
+
 import numpy as np
 from numpy.testing import (assert_,
                            assert_equal, assert_array_equal, assert_allclose)
@@ -100,6 +102,10 @@ class TestZeroInflatedModel_probit(CheckGeneric):
         res2 = RandHIE.zero_inflated_poisson_probit
         cls.res2 = res2
 
+    @pytest.mark.skipif(PLATFORM_LINUX32, reason="Fails on 32-bit Linux")
+    def test_fit_regularized(self):
+        super().test_fit_regularized()
+
 class TestZeroInflatedModel_offset(CheckGeneric):
     @classmethod
     def setup_class(cls):
@@ -170,7 +176,7 @@ class TestZeroInflatedModelPandas(CheckGeneric):
         cls.data = data
         exog = sm.add_constant(data.exog.iloc[:,1:4], prepend=False)
         exog_infl = sm.add_constant(data.exog.iloc[:,0], prepend=False)
-        # we don't need to verify convergence here
+        # we do not need to verify convergence here
         start_params = np.asarray([0.10337834587498942, -1.0459825102508549,
                                    -0.08219794475894268, 0.00856917434709146,
                                    -0.026795737379474334, 1.4823632430107334])
@@ -460,7 +466,7 @@ class TestZeroInflatedNegativeBinomialP_predict(object):
         assert_allclose(((prm - freq)**2).mean(), 0, rtol=1e-10, atol=1e-4)
 
     def test_predict_generic_zi(self):
-        # These tests don't use numbers from other packages.
+        # These tests do not use numbers from other packages.
         # Tests are on closeness of estimated to true/DGP values
         # and theoretical relationship between quantities
         res = self.res

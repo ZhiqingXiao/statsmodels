@@ -1,4 +1,7 @@
-from statsmodels.compat.python import lzip, StringIO, range
+from statsmodels.compat.python import lzip
+
+from io import StringIO
+
 import numpy as np
 
 from statsmodels.iolib import SimpleTable
@@ -149,11 +152,10 @@ class VARSummary(object):
         header = ('coefficient','std. error','t-stat','prob')
 
         buf = StringIO()
-        dim = k * model.k_ar + model.k_trend
+        dim = k * model.k_ar + model.k_trend + model.k_exog_user
         for i in range(k):
             section = "Results for equation %s" % model.names[i]
             buf.write(section + '\n')
-            #print >> buf, section
 
             table = SimpleTable(data[dim * i : dim * (i + 1)], header,
                                 Xnames, title=None, txt_fmt = self.default_fmt)

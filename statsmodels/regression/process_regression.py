@@ -20,7 +20,6 @@ import patsy
 import statsmodels.base.model as base
 import statsmodels.api as sm
 import collections
-from statsmodels.compat.python import string_types
 from scipy.optimize import minimize
 from statsmodels.iolib import summary2
 from statsmodels.tools.numdiff import approx_fprime
@@ -57,7 +56,7 @@ class ProcessCovariance(object):
 
     def jac(self, time, sc, sm):
         """
-        The Jacobian of the covariance respect to the parameters.
+        The Jacobian of the covariance with respect to the parameters.
 
         See get_cov for parameters.
 
@@ -191,7 +190,7 @@ class ProcessMLE(base.LikelihoodModel):
     Fit a Gaussian mean/variance regression model.
 
     This class fits a one-dimensional Gaussian process model with
-    parameterized mean and covariance structures to grouped data.  For
+    parametrized mean and covariance structures to grouped data.  For
     each group, there is an independent realization of a latent
     Gaussian process indexed by an observed real-valued time
     variable..  The data consist of the Gaussian process observed at a
@@ -354,10 +353,10 @@ class ProcessMLE(base.LikelihoodModel):
         if drop_cols is not None:
             warnings.warn("'drop_cols' is ignored")
 
-        if isinstance(time, string_types):
+        if isinstance(time, str):
             time = np.asarray(data[time])
 
-        if isinstance(groups, string_types):
+        if isinstance(groups, str):
             groups = np.asarray(data[groups])
 
         exog_scale = patsy.dmatrix(scale_formula, data)
@@ -578,7 +577,7 @@ class ProcessMLE(base.LikelihoodModel):
         ----------
         start_params : array_like
             Optional starting values.
-        method : string or array of strings
+        method : str or array of str
             Method or sequence of methods for scipy optimize.
         maxiter : int
             The maximum number of iterations in the optimization.
@@ -670,10 +669,10 @@ class ProcessMLE(base.LikelihoodModel):
         smooth_params : array_like
             The regression parameters for the smoothing part
             of the covariance structure.
-        scale_data : Dataframe
+        scale_data : DataFrame
             The data used to determine the scale parameter,
             must have len(time) rows.
-        smooth_data: Dataframe
+        smooth_data : DataFrame
             The data used to determine the smoothness parameter,
             must have len(time) rows.
 
@@ -776,7 +775,7 @@ class ProcessMLEResults(base.GenericLikelihoodModelResults):
         scale : array_like
             The data used to determine the scale parameter,
             must have len(time) rows.
-        smooth: array_like
+        smooth : array_like
             The data used to determine the smoothness parameter,
             must have len(time) rows.
 

@@ -9,7 +9,6 @@
 
 # # Generalized Linear Models
 
-from __future__ import print_function
 import numpy as np
 import statsmodels.api as sm
 from scipy import stats
@@ -128,7 +127,7 @@ graphics.gofplots.qqplot(resid, line='r')
 #
 #  In the example above, we printed the ``NOTE`` attribute to learn about
 # the
-#  Star98 dataset. Statsmodels datasets ships with other useful
+#  Star98 dataset. statsmodels datasets ships with other useful
 # information. For
 #  example:
 

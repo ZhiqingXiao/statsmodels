@@ -47,7 +47,6 @@ def polynomial_sample_data():
     poly : smoother instance
     y : ndarray
         generated function values, demeaned
-
     """
     n = 10000
     x = np.linspace(-1, 1, n)
@@ -337,7 +336,7 @@ def test_multivariate_gam_1d_data():
 
 def test_multivariate_gam_cv():
     # SMOKE test
-    # no test is performed. It only checks that there isn't any runtime error
+    # no test is performed. It only checks that there is not any runtime error
 
     def cost(x1, x2):
         return np.linalg.norm(x1 - x2) / len(x1)
@@ -703,7 +702,7 @@ def test_partial_values2():
 
 
 def test_partial_values():
-    # this test is only approximate because we don't use the same spline
+    # this test is only approximate because we do not use the same spline
     # basis functions (knots) as mgcv
     cur_dir = os.path.dirname(os.path.abspath(__file__))
     file_path = os.path.join(cur_dir, "results", "prediction_from_mgcv.csv")

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from statsmodels.compat.python import reduce
+from functools import reduce
 import sys
 from os.path import dirname
 
@@ -34,7 +34,7 @@ def _show_versions_only():
     except ImportError:
         has_sm = False
 
-    print('\nStatsmodels\n===========\n')
+    print('\nstatsmodels\n===========\n')
     if has_sm:
         print('Installed: %s' % safe_version(statsmodels))
     else:
@@ -138,6 +138,14 @@ def _show_versions_only():
 
 
 def show_versions(show_dirs=True):
+    """
+    List the versions of statsmodels and any installed dependencies
+
+    Parameters
+    ----------
+    show_dirs : bool
+        Flag indicating to show module locations
+    """
     if not show_dirs:
         _show_versions_only()
     print("\nINSTALLED VERSIONS")
@@ -159,7 +167,7 @@ def show_versions(show_dirs=True):
     except ImportError:
         has_sm = False
 
-    print('\nStatsmodels\n===========\n')
+    print('\nstatsmodels\n===========\n')
     if has_sm:
         print('Installed: %s (%s)' % (safe_version(statsmodels),
                                       dirname(statsmodels.__file__)))

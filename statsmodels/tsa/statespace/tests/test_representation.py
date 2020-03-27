@@ -23,6 +23,7 @@ import pytest
 from statsmodels.tsa.statespace.representation import Representation
 from statsmodels.tsa.statespace.kalman_filter import (
     KalmanFilter, FilterResults, PredictionResults)
+from statsmodels.tsa.statespace.simulation_smoother import SimulationSmoother
 from statsmodels.tsa.statespace import tools, sarimax
 from .results import results_kalman_filter
 from numpy.testing import (
@@ -263,7 +264,7 @@ class TestClark1987ConserveAll(Clark1987):
 
     def test_loglike(self):
         assert_almost_equal(
-            self.results.llf_obs[0], self.true['loglike'], 5
+            self.results.llf, self.true['loglike'], 5
         )
 
     def test_filtered_state(self):
@@ -497,7 +498,7 @@ class TestClark1989ConserveAll(Clark1989):
 
     def test_loglike(self):
         assert_almost_equal(
-            self.results.llf_obs[0], self.true['loglike'], 2
+            self.results.llf, self.true['loglike'], 2
         )
 
     def test_filtered_state(self):
@@ -691,6 +692,79 @@ def test_initialization():
         mod.initialize_known(initial_state, initial_state_cov)
 
 
+def test_init_matrices_time_invariant():
+    # Test setting state space system matrices in __init__, with time-invariant
+    # matrices
+    k_endog = 2
+    k_states = 3
+    k_posdef = 1
+
+    endog = np.zeros((10, 2))
+    obs_intercept = np.arange(k_endog) * 1.0
+    design = np.reshape(
+        np.arange(k_endog * k_states) * 1.0, (k_endog, k_states))
+    obs_cov = np.reshape(np.arange(k_endog**2) * 1.0, (k_endog, k_endog))
+    state_intercept = np.arange(k_states) * 1.0
+    transition = np.reshape(np.arange(k_states**2) * 1.0, (k_states, k_states))
+    selection = np.reshape(
+        np.arange(k_states * k_posdef) * 1.0, (k_states, k_posdef))
+    state_cov = np.reshape(np.arange(k_posdef**2) * 1.0, (k_posdef, k_posdef))
+
+    mod = Representation(endog, k_states=k_states, k_posdef=k_posdef,
+                         obs_intercept=obs_intercept, design=design,
+                         obs_cov=obs_cov, state_intercept=state_intercept,
+                         transition=transition, selection=selection,
+                         state_cov=state_cov)
+
+    assert_allclose(mod['obs_intercept'], obs_intercept)
+    assert_allclose(mod['design'], design)
+    assert_allclose(mod['obs_cov'], obs_cov)
+    assert_allclose(mod['state_intercept'], state_intercept)
+    assert_allclose(mod['transition'], transition)
+    assert_allclose(mod['selection'], selection)
+    assert_allclose(mod['state_cov'], state_cov)
+
+
+def test_init_matrices_time_varying():
+    # Test setting state space system matrices in __init__, with time-varying
+    # matrices
+    nobs = 10
+    k_endog = 2
+    k_states = 3
+    k_posdef = 1
+
+    endog = np.zeros((10, 2))
+    obs_intercept = np.reshape(np.arange(k_endog * nobs) * 1.0,
+                               (k_endog, nobs))
+    design = np.reshape(
+        np.arange(k_endog * k_states * nobs) * 1.0, (k_endog, k_states, nobs))
+    obs_cov = np.reshape(
+        np.arange(k_endog**2 * nobs) * 1.0, (k_endog, k_endog, nobs))
+    state_intercept = np.reshape(
+        np.arange(k_states * nobs) * 1.0, (k_states, nobs))
+    transition = np.reshape(
+        np.arange(k_states**2 * nobs) * 1.0, (k_states, k_states, nobs))
+    selection = np.reshape(
+        np.arange(k_states * k_posdef * nobs) * 1.0,
+        (k_states, k_posdef, nobs))
+    state_cov = np.reshape(
+        np.arange(k_posdef**2 * nobs) * 1.0, (k_posdef, k_posdef, nobs))
+
+    mod = Representation(endog, k_states=k_states, k_posdef=k_posdef,
+                         obs_intercept=obs_intercept, design=design,
+                         obs_cov=obs_cov, state_intercept=state_intercept,
+                         transition=transition, selection=selection,
+                         state_cov=state_cov)
+
+    assert_allclose(mod['obs_intercept'], obs_intercept)
+    assert_allclose(mod['design'], design)
+    assert_allclose(mod['obs_cov'], obs_cov)
+    assert_allclose(mod['state_intercept'], state_intercept)
+    assert_allclose(mod['transition'], transition)
+    assert_allclose(mod['selection'], selection)
+    assert_allclose(mod['state_cov'], state_cov)
+
+
 def test_no_endog():
     # Test for RuntimeError when no endog is provided by the time filtering
     # is initialized.
@@ -744,7 +818,7 @@ def test_cython():
     mod._initialize_filter()
     kf = mod._kalman_filters['d']
 
-    # Rebind data, still float, check that we haven't changed
+    # Rebind data, still float, check that we have not changed
     mod.bind(endog)
     mod._initialize_filter()
     assert_equal(mod._kalman_filter, kf)
@@ -788,7 +862,6 @@ def test_loglike():
 
     # Test that self.memory_no_likelihood = True raises an error
     mod.memory_no_likelihood = True
-    assert_raises(RuntimeError, mod.loglike)
     assert_raises(RuntimeError, mod.loglikeobs)
 
 
@@ -804,7 +877,8 @@ def test_predict():
     mod['selection', :] = 1
     mod['state_cov', :] = 1
 
-    # Check that we need both forecasts and predicted output for prediction
+    # Check that we need both forecasts and predicted output for dynamic
+    # prediction
     mod.memory_no_forecast = True
     res = mod.filter()
     assert_raises(ValueError, res.predict)
@@ -812,7 +886,7 @@ def test_predict():
 
     mod.memory_no_predicted = True
     res = mod.filter()
-    assert_raises(ValueError, res.predict)
+    assert_raises(ValueError, res.predict, dynamic=True)
     mod.memory_no_predicted = False
 
     # Now get a clean filter object
@@ -843,21 +917,13 @@ def test_predict():
         assert_equal(str(w[0].message), message)
 
     # Check for a warning when providing a non-used statespace matrix
-    with warnings.catch_warnings(record=True) as w:
+    with pytest.raises(ValueError):
         res.predict(end=res.nobs+1, design=True,
                     obs_intercept=np.zeros((1, 1)))
-        message = ('Model has time-invariant design matrix, so the design'
-                   ' argument to `predict` has been ignored.')
-        assert_equal(str(w[0].message), message)
 
     # Check that an error is raised when a new time-varying matrix is not
     # provided
     assert_raises(ValueError, res.predict, end=res.nobs+1)
-
-    # Check that an error is raised when a non-two-dimensional obs_intercept
-    # is given
-    assert_raises(ValueError, res.predict, end=res.nobs+1,
-                  obs_intercept=np.zeros(1))
 
     # Check that an error is raised when an obs_intercept with incorrect length
     # is given
@@ -944,8 +1010,10 @@ def test_standardized_forecasts_error():
     data['lgdp'] = np.log(data['GDP'])
 
     # Fit an ARIMA(1, 1, 0) to log GDP
-    mod = sarimax.SARIMAX(data['lgdp'], order=(1, 1, 0))
+    mod = sarimax.SARIMAX(data['lgdp'], order=(1, 1, 0),
+                          use_exact_diffuse=True)
     res = mod.fit(disp=-1)
+    d = np.maximum(res.loglikelihood_burn, res.nobs_diffuse)
 
     standardized_forecasts_error = (
         res.filter_results.forecasts_error[0] /
@@ -953,8 +1021,8 @@ def test_standardized_forecasts_error():
     )
 
     assert_allclose(
-        res.filter_results.standardized_forecasts_error[0],
-        standardized_forecasts_error,
+        res.filter_results.standardized_forecasts_error[0, d:],
+        standardized_forecasts_error[..., d:],
     )
 
 
@@ -970,7 +1038,7 @@ def test_simulate():
 
     # Random walk model, so simulated series is just the cumulative sum of
     # the shocks
-    mod = KalmanFilter(k_endog=1, k_states=1)
+    mod = SimulationSmoother(np.r_[0], k_states=1, initialization='diffuse')
     mod['design', 0, 0] = 1.
     mod['transition', 0, 0] = 1.
     mod['selection', 0, 0] = 1.
@@ -984,7 +1052,7 @@ def test_simulate():
 
     # Local level model, so simulated series is just the cumulative sum of
     # the shocks plus the measurement shock
-    mod = KalmanFilter(k_endog=1, k_states=1)
+    mod = SimulationSmoother(np.r_[0], k_states=1, initialization='diffuse')
     mod['design', 0, 0] = 1.
     mod['transition', 0, 0] = 1.
     mod['selection', 0, 0] = 1.
@@ -999,7 +1067,8 @@ def test_simulate():
     # Local level-like model with observation and state intercepts, so
     # simulated series is just the cumulative sum of the shocks minus the state
     # intercept, plus the observation intercept and the measurement shock
-    mod = KalmanFilter(k_endog=1, k_states=1)
+    mod = SimulationSmoother(np.zeros((1, 10)), k_states=1,
+                             initialization='diffuse')
     mod['obs_intercept', 0, 0] = 5.
     mod['design', 0, 0] = 1.
     mod['state_intercept', 0, 0] = -2.
@@ -1014,7 +1083,8 @@ def test_simulate():
     assert_allclose(actual, desired)
 
     # Model with time-varying observation intercept
-    mod = KalmanFilter(k_endog=1, k_states=1, nobs=10)
+    mod = SimulationSmoother(np.zeros((1, 10)), k_states=1, nobs=10,
+                             initialization='diffuse')
     mod['obs_intercept'] = (np.arange(10)*1.).reshape(1, 10)
     mod['design', 0, 0] = 1.
     mod['transition', 0, 0] = 1.
@@ -1029,7 +1099,8 @@ def test_simulate():
 
     # Model with time-varying observation intercept, check that error is raised
     # if more simulations are requested than are nobs.
-    mod = KalmanFilter(k_endog=1, k_states=1, nobs=10)
+    mod = SimulationSmoother(np.zeros((1, 10)), k_states=1, nobs=10,
+                             initialization='diffuse')
     mod['obs_intercept'] = (np.arange(10)*1.).reshape(1, 10)
     mod['design', 0, 0] = 1.
     mod['transition', 0, 0] = 1.
@@ -1071,7 +1142,7 @@ def test_impulse_responses():
 
     # Random walk: 1-unit impulse response (i.e. non-orthogonalized irf) is 1
     # for all periods
-    mod = KalmanFilter(k_endog=1, k_states=1)
+    mod = SimulationSmoother(k_endog=1, k_states=1, initialization='diffuse')
     mod['design', 0, 0] = 1.
     mod['transition', 0, 0] = 1.
     mod['selection', 0, 0] = 1.
@@ -1084,7 +1155,7 @@ def test_impulse_responses():
 
     # Random walk: 2-unit impulse response (i.e. non-orthogonalized irf) is 2
     # for all periods
-    mod = KalmanFilter(k_endog=1, k_states=1)
+    mod = SimulationSmoother(k_endog=1, k_states=1, initialization='diffuse')
     mod['design', 0, 0] = 1.
     mod['transition', 0, 0] = 1.
     mod['selection', 0, 0] = 1.
@@ -1097,7 +1168,7 @@ def test_impulse_responses():
 
     # Random walk: 1-standard-deviation response (i.e. orthogonalized irf) is
     # sigma for all periods (here sigma^2 = 2)
-    mod = KalmanFilter(k_endog=1, k_states=1)
+    mod = SimulationSmoother(k_endog=1, k_states=1, initialization='diffuse')
     mod['design', 0, 0] = 1.
     mod['transition', 0, 0] = 1.
     mod['selection', 0, 0] = 1.
@@ -1110,7 +1181,7 @@ def test_impulse_responses():
 
     # Random walk: 1-standard-deviation cumulative response (i.e. cumulative
     # orthogonalized irf)
-    mod = KalmanFilter(k_endog=1, k_states=1)
+    mod = SimulationSmoother(k_endog=1, k_states=1, initialization='diffuse')
     mod['design', 0, 0] = 1.
     mod['transition', 0, 0] = 1.
     mod['selection', 0, 0] = 1.
@@ -1128,7 +1199,7 @@ def test_impulse_responses():
 
     # Random walk: 1-unit impulse response (i.e. non-orthogonalized irf) is 1
     # for all periods, even when intercepts are present
-    mod = KalmanFilter(k_endog=1, k_states=1)
+    mod = SimulationSmoother(k_endog=1, k_states=1, initialization='diffuse')
     mod['state_intercept', 0] = 100.
     mod['design', 0, 0] = 1.
     mod['obs_intercept', 0] = -1000.
@@ -1143,13 +1214,13 @@ def test_impulse_responses():
 
     # Univariate model (random walk): test that an error is thrown when
     # a multivariate or empty "impulse" is sent
-    mod = KalmanFilter(k_endog=1, k_states=1)
+    mod = SimulationSmoother(k_endog=1, k_states=1, initialization='diffuse')
     assert_raises(ValueError, mod.impulse_responses, impulse=1)
     assert_raises(ValueError, mod.impulse_responses, impulse=[1, 1])
     assert_raises(ValueError, mod.impulse_responses, impulse=[])
 
     # Univariate model with two uncorrelated shocks
-    mod = KalmanFilter(k_endog=1, k_states=2)
+    mod = SimulationSmoother(k_endog=1, k_states=2, initialization='diffuse')
     mod['design', 0, 0:2] = 1.
     mod['transition', :, :] = np.eye(2)
     mod['selection', :, :] = np.eye(2)
@@ -1182,7 +1253,7 @@ def test_impulse_responses():
     assert_allclose(actual, desired)
 
     # Univariate model with two correlated shocks
-    mod = KalmanFilter(k_endog=1, k_states=2)
+    mod = SimulationSmoother(k_endog=1, k_states=2, initialization='diffuse')
     mod['design', 0, 0:2] = 1.
     mod['transition', :, :] = np.eye(2)
     mod['selection', :, :] = np.eye(2)
@@ -1205,7 +1276,7 @@ def test_impulse_responses():
     assert_allclose(actual, desired)
 
     # Multivariate model with two correlated shocks
-    mod = KalmanFilter(k_endog=2, k_states=2)
+    mod = SimulationSmoother(k_endog=2, k_states=2, initialization='diffuse')
     mod['design', :, :] = np.eye(2)
     mod['transition', :, :] = np.eye(2)
     mod['selection', :, :] = np.eye(2)

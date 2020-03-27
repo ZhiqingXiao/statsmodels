@@ -82,10 +82,9 @@ Potential problems for Python 3
 :change: 2010-05-06 add `label_cells` to `SimpleTable`
 """
 
-from statsmodels.compat.python import (lmap, lrange, zip, next, iteritems,
-                                       zip_longest, range, long)
+from statsmodels.compat.python import lmap, lrange, iteritems
 
-from itertools import cycle
+from itertools import cycle, zip_longest
 import csv
 
 
@@ -161,7 +160,7 @@ class SimpleTable(list):
             sequence of K strings, one per header
         stubs : list (or tuple) of str
             sequence of R strings, one per stub
-        title : string
+        title : str
             title of the table
         datatypes : list of int
             indexes to `data_fmts`
@@ -225,9 +224,9 @@ class SimpleTable(list):
         if these were provided at initialization.
         Parameters
         ----------
-        headers : list of strings
+        headers : list[str]
             K strings, where K is number of columns
-        stubs : list of strings
+        stubs : list[str]
             R strings, where R is number of non-header rows
 
         :note: a header row does not receive a stub!
@@ -314,7 +313,7 @@ class SimpleTable(list):
             return [0] * ncols
         elif request is None:  # assume no extra space desired (e.g, CSV)
             request = [0] * ncols
-        elif isinstance(request, (int, long)):
+        elif isinstance(request, int):
             request = [request] * ncols
         elif len(request) < ncols:
             request = [request[i % len(request)] for i in range(ncols)]
@@ -369,7 +368,7 @@ class SimpleTable(list):
         fmt = self._get_fmt('txt', **fmt_dict)
         # get rows formatted as strings
         formatted_rows = [row.as_string('text', **fmt) for row in self]
-        rowlen = len(formatted_rows[-1])  # don't use header row
+        rowlen = len(formatted_rows[-1])  # do not use header row
 
         # place decoration above the table body, if desired
         table_dec_above = fmt.get('table_dec_above', '=')
@@ -619,7 +618,7 @@ class Row(list):
             elif output_format == 'latex':
                 result = row_as_string + "\n" + dec_below
             else:
-                raise ValueError("I can't decorate a %s header." %
+                raise ValueError("I cannot decorate a %s header." %
                                  output_format)
         return result
 
@@ -676,7 +675,7 @@ class Cell(object):
         fmt = self._get_fmt(output_format, **fmt_dict)
         datatype = self.datatype
         data_aligns = fmt.get('data_aligns', 'c')
-        if isinstance(datatype, (int, long)):
+        if isinstance(datatype, int):
             align = data_aligns[datatype % len(data_aligns)]
         elif datatype == 'stub':
             # still support deprecated `stubs_align`
@@ -719,7 +718,7 @@ class Cell(object):
             if data_fmt is None:
                 data_fmt = '%s'
             data_fmts = [data_fmt]
-        if isinstance(datatype, (int, long)):
+        if isinstance(datatype, int):
             datatype = datatype % len(data_fmts)  # constrain to indexes
             content = data_fmts[datatype] % (data,)
             if datatype == 0:

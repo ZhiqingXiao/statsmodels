@@ -1,7 +1,7 @@
 """
 Test functions for GEE
 
-External comparisons are to R and Stata.  The statmodels GEE
+External comparisons are to R and Stata.  The statsmodels GEE
 implementation should generally agree with the R GEE implementation
 for the independence and exchangeable correlation structures.  For
 other correlation structures, the details of the correlation
@@ -278,7 +278,7 @@ class TestGEE(object):
                                 family=families.Poisson())
         rslt2 = mod2.fit()
 
-        # don't use wrapper, asserts_xxx don't work
+        # do not use wrapper, asserts_xxx do not work
         rslt1 = rslt1._results
         rslt2 = rslt2._results
 
@@ -494,7 +494,7 @@ class TestGEE(object):
             assert_almost_equal(mdf.standard_errors(), se[j],
                                 decimal=6)
 
-        # FIXME: don't leave commented-out
+        # FIXME: do not leave commented-out
         # Check for run-time exceptions in summary
         # print(mdf.summary())
 
@@ -1150,7 +1150,7 @@ class TestGEE(object):
 
         ols = lm.OLS.from_formula("Y ~ X1 + X2 + X3", data=D).fit()
 
-        # don't use wrapper, asserts_xxx don't work
+        # do not use wrapper, asserts_xxx do not work
         ols = ols._results
 
         assert_almost_equal(ols.params, mdf.params, decimal=10)
@@ -1578,7 +1578,7 @@ class CheckConsistency(object):
         res_robust_bc = mod.fit(start_params=self.start_params,
                                 cov_type='bias_reduced')
 
-        # call summary to make sure it doesn't change cov_type
+        # call summary to make sure it does not change cov_type
         res_naive.summary()
         res_robust_bc.summary()
 
@@ -1607,7 +1607,7 @@ class CheckConsistency(object):
             assert_allclose(res.cov_params(), cov, rtol=rtol, atol=1e-10)
             assert_allclose(res.cov_params_default, cov, rtol=rtol, atol=1e-10)
 
-        # assert that we don't have a copy
+        # assert that we do not have a copy
         assert_(res_robust.cov_params_default is res_robust.cov_robust)
         assert_(res_naive.cov_params_default is res_naive.cov_naive)
         assert_(res_robust_bc.cov_params_default is
@@ -1974,3 +1974,37 @@ def test_qic_warnings():
         model = gee.GEE(y, x1, family=fam, groups=g)
         result = model.fit()
         result.qic()
+
+
+@pytest.mark.parametrize("reg", [False, True])
+def test_quasipoisson(reg):
+
+    np.random.seed(343)
+
+    n = 1000
+    x = np.random.normal(size=(n, 3))
+    g = np.random.gamma(1, 1, size=n)
+    y = np.random.poisson(g)
+    grp = np.kron(np.arange(100), np.ones(n // 100))
+
+    model1 = gee.GEE(y, x, family=families.Poisson(), groups=grp,
+                     cov_type="naive")
+    model2 = gee.GEE(y, x, family=families.Poisson(), groups=grp,
+                     cov_type="naive")
+
+    if reg:
+        result1 = model1.fit_regularized(pen_wt=0.1)
+        result2 = model2.fit_regularized(pen_wt=0.1, scale="X2")
+    else:
+        result1 = model1.fit()
+        result2 = model2.fit(scale="X2")
+
+    # The parameter estimates are the same regardless of how
+    # the scale parameter is handled
+    assert_allclose(result1.params, result2.params)
+
+    if not reg:
+        # The robust covariance does not depend on the scale parameter,
+        # but the naive covariance does.
+        assert_allclose(result2.cov_naive / result1.cov_naive,
+                        result2.scale * np.ones_like(result2.cov_naive))

@@ -80,7 +80,7 @@ class Table(object):
     ----------
     table : array_like
         A contingency table.
-    shift_zeros : boolean
+    shift_zeros : bool
         If True and any cell count is zero, add 0.5 to all values
         in the table.
 
@@ -131,7 +131,7 @@ class Table(object):
         data : array_like
             The raw data, from which a contingency table is constructed
             using the first two columns.
-        shift_zeros : boolean
+        shift_zeros : bool
             If True and any cell count is zero, add 0.5 to all values
             in the table.
 
@@ -161,7 +161,7 @@ class Table(object):
 
         statistic : float
             The chi^2 test statistic.
-        df : integer
+        df : int
             The degrees of freedom of the reference distribution
         pvalue : float
             The p-value for the test.
@@ -435,7 +435,7 @@ class SquareTable(Table):
     table : array_like
         A square contingency table, or DataFrame that is converted
         to a square form.
-    shift_zeros : boolean
+    shift_zeros : bool
         If True and any cell count is zero, add 0.5 to all values
         in the table.
 
@@ -522,7 +522,7 @@ class SquareTable(Table):
 
         Parameters
         ----------
-        method : string
+        method : str
             Either 'stuart_maxwell' or 'bhapkar', leading to two different
             estimates of the covariance matrix for the estimated
             difference between the row margins and the column margins.
@@ -533,7 +533,7 @@ class SquareTable(Table):
             The chi^2 test statistic
         pvalue : float
             The p-value of the test statistic
-        df : integer
+        df : int
             The degrees of freedom of the reference distribution
 
         Notes
@@ -640,7 +640,7 @@ class Table2x2(SquareTable):
     ----------
     table : array_like
         A 2x2 contingency table
-    shift_zeros : boolean
+    shift_zeros : bool
         If true, 0.5 is added to all cells of the table if any cell is
         equal to zero.
 
@@ -677,7 +677,7 @@ class Table2x2(SquareTable):
         data : array_like
             The raw data, the first column defines the rows and the
             second column defines the columns.
-        shift_zeros : boolean
+        shift_zeros : bool
             If True, and if there are any zeros in the contingency
             table, add 0.5 to all four cells of the table.
         """
@@ -749,7 +749,7 @@ class Table2x2(SquareTable):
         alpha : float
             `1 - alpha` is the nominal coverage probability of the
             confidence interval.
-        method : string
+        method : str
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
@@ -770,7 +770,7 @@ class Table2x2(SquareTable):
         alpha : float
             `1 - alpha` is the nominal coverage probability of the
             confidence interval.
-        method : string
+        method : str
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
@@ -842,7 +842,7 @@ class Table2x2(SquareTable):
         alpha : float
             `1 - alpha` is the nominal coverage probability of the
             confidence interval.
-        method : string
+        method : str
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
@@ -862,7 +862,7 @@ class Table2x2(SquareTable):
         alpha : float
             `1 - alpha` is the nominal coverage probability of the
             confidence interval.
-        method : string
+        method : str
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
         """
@@ -941,6 +941,10 @@ class StratifiedTable(object):
                 raise ValueError("If an ndarray, argument must be 2x2xn")
             table = tables
         else:
+            if any([np.asarray(x).shape != (2, 2) for x in tables]):
+                m = "If `tables` is a list, all of its elements should be 2x2"
+                raise ValueError(m)
+
             # Create a data cube
             table = np.dstack(tables).astype(np.float64)
 
@@ -1024,7 +1028,7 @@ class StratifiedTable(object):
 
         Parameters
         ----------
-        correction : boolean
+        correction : bool
             If True, use the continuity correction when calculating the
             test statistic.
 
@@ -1099,9 +1103,9 @@ class StratifiedTable(object):
 
         References
         ----------
-        Robins, James, Norman Breslow, and Sander Greenland. "Estimators of
-            the Mantel-Haenszel Variance Consistent in Both Sparse Data and
-            Large-Strata Limiting Models." Biometrics 42, no. 2 (1986): 311-23.
+        J. Robins, N. Breslow, S. Greenland. "Estimators of the
+        Mantel-Haenszel Variance Consistent in Both Sparse Data and
+        Large-Strata Limiting Models." Biometrics 42, no. 2 (1986): 311-23.
         """
 
         adns = np.sum(self._ad / self._n)
@@ -1127,7 +1131,7 @@ class StratifiedTable(object):
         alpha : float
             `1 - alpha` is the nominal coverage probability of the
             interval.
-        method : string
+        method : str
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
 
@@ -1158,7 +1162,7 @@ class StratifiedTable(object):
         alpha : float
             `1 - alpha` is the nominal coverage probability of the
             interval.
-        method : string
+        method : str
             The method for producing the confidence interval.  Currently
             must be 'normal' which uses the normal approximation.
 
@@ -1183,7 +1187,7 @@ class StratifiedTable(object):
 
         Parameters
         ----------
-        adjust : boolean
+        adjust : bool
             Use the 'Tarone' adjustment to achieve the chi^2
             asymptotic distribution.
 
@@ -1205,7 +1209,8 @@ class StratifiedTable(object):
         c = -r * self._apb * self._apc
 
         # Expected value of first cell
-        e11 = (-b + np.sqrt(b**2 - 4*a*c)) / (2*a)
+        dr = np.sqrt(b**2 - 4*a*c)
+        e11 = (-b + dr) / (2*a)
 
         # Variance of the first cell
         v11 = (1 / e11 + 1 / (self._apc - e11) + 1 / (self._apb - e11) +
@@ -1328,7 +1333,13 @@ def mcnemar(table, exact=True, correction=True):
     if exact:
         statistic = np.minimum(n1, n2)
         # binom is symmetric with p=0.5
-        pvalue = stats.binom.cdf(statistic, n1 + n2, 0.5) * 2
+        # SciPy 1.7+ required int arguments
+        int_sum = int(n1 + n2)
+        if int_sum != (n1 + n2):
+            warnings.warn("exact can only be used with tables containing "
+                          "integers. This warning will become a ValueError "
+                          "after 0.12.", FutureWarning)
+        pvalue = stats.binom.cdf(statistic, int_sum, 0.5) * 2
         pvalue = np.minimum(pvalue, 1)  # limit to 1 if n1==n2
     else:
         corr = int(correction)  # convert bool to 0 or 1
@@ -1350,7 +1361,7 @@ def cochrans_q(x, return_object=True):
     ----------
     x : array_like, 2d (N, k)
         data with N cases and k variables
-    return_object : boolean
+    return_object : bool
         Return values as bunch instead of as individual values.
 
     Returns

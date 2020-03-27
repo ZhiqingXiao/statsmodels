@@ -27,7 +27,7 @@ Not all methods and options have been tried out yet after refactoring
 
 need more efficient loop if groups are sorted -> see GroupSorted.group_iter
 """
-from statsmodels.compat.python import lrange, lzip, range
+from statsmodels.compat.python import lrange, lzip
 import numpy as np
 import pandas as pd
 
@@ -37,7 +37,6 @@ from pandas import Index, MultiIndex
 
 def combine_indices(groups, prefix='', sep='.', return_labels=False):
     """use np.unique to get integer group indices for product, intersection
-
     """
     if isinstance(groups, tuple):
         groups = np.column_stack(groups)
@@ -82,7 +81,7 @@ def combine_indices(groups, prefix='', sep='.', return_labels=False):
 def group_sums(x, group, use_bincount=True):
     """simple bincount version, again
 
-    group : array, integer
+    group : ndarray, integer
         assumed to be consecutive integers
 
     no dtype checking because I want to raise in that case
@@ -171,7 +170,6 @@ def dummy_sparse(groups):
             [1, 0, 0],
             [0, 0, 1],
             [1, 0, 0]], dtype=int8)
-
     """
     from scipy import sparse
 
@@ -272,14 +270,13 @@ class GroupSorted(Group):
         individual, then no values for that individual are returned.
 
         TODO: for the unbalanced case, I should get the same truncation for
-        the array with lag=0. From the return of lag_idx we wouldn't know
+        the array with lag=0. From the return of lag_idx we would not know
         which individual is missing.
 
         TODO: do I want the full equivalent of lagmat in tsa?
         maxlag or lag or lags.
 
         not tested yet
-
         """
         lag_idx = np.asarray(self.groupidx)[:, 1] - lag  # asarray or already?
         mask_ok = (lag <= lag_idx)
@@ -383,7 +380,7 @@ class Grouping(object):
         """
         Resets the index in-place.
         """
-        # NOTE: this isn't of much use if the rest of the data doesn't change
+        # NOTE: this is not of much use if the rest of the data does not change
         # This needs to reset cache
         if names is None:
             names = self.group_names
@@ -492,7 +489,7 @@ class Grouping(object):
         processed = np.array(processed)
         return processed.reshape(-1, processed.shape[-1])
 
-    # TODO: this isn't general needs to be a PanelGrouping object
+    # TODO: this is not general needs to be a PanelGrouping object
     def dummies_time(self):
         self.dummy_sparse(level=1)
         return self._dummies

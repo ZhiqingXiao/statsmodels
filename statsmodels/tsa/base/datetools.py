@@ -1,8 +1,7 @@
 """
 Tools for working with dates
 """
-from statsmodels.compat.python import (lrange, lzip, lmap,
-                                       asstr, zip, map)
+from statsmodels.compat.python import lrange, lzip, lmap, asstr
 import re
 import datetime
 
@@ -158,7 +157,7 @@ def dates_from_str(dates):
 
     Returns
     -------
-    date_list : array
+    date_list : ndarray
         A list of datetime types.
     """
     return lmap(date_parser, dates)
@@ -186,7 +185,7 @@ def dates_from_range(start, end=None, length=None):
 
     Returns
     -------
-    date_list : array
+    date_list : ndarray
         A list of datetime types.
     """
     dates = date_range_str(start, end, length)

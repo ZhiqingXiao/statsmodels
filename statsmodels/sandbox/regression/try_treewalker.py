@@ -5,7 +5,7 @@ sum is standing for likelihood calculations
 should collect and aggregate likelihood contributions bottom up
 
 '''
-from statsmodels.compat.python import iteritems, itervalues, lrange, zip, long
+from statsmodels.compat.python import iteritems, itervalues, lrange
 import numpy as np
 
 tree = [[0,1],[[2,3],[4,5,6]],[7]]
@@ -18,7 +18,7 @@ def branch(tree):
     '''walking a tree bottom-up
     '''
 
-    if not isinstance(tree[0], (int, long)):   #assumes leaves are int for choice index
+    if not isinstance(tree[0], int):   #assumes leaves are int for choice index
         branchsum = 0
         for b in tree:
             branchsum += branch(b)
@@ -38,7 +38,7 @@ print(branch(tree))
 
 
 #new version that also keeps track of branch name and allows V_j for a branch
-#   as in Greene, V_j + lamda * IV doesn't look the same as including the
+#   as in Greene, V_j + lamda * IV does not look the same as including the
 #   explanatory variables in leaf X_j, V_j is linear in X, IV is logsumexp of X,
 
 

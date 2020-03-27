@@ -9,7 +9,6 @@
 
 # # Generalized Least Squares
 
-from __future__ import print_function
 import statsmodels.api as sm
 
 # The Longley dataset is a time series dataset:
@@ -40,7 +39,7 @@ resid_fit = sm.OLS(ols_resid[1:], sm.add_constant(ols_resid[:-1])).fit()
 print(resid_fit.tvalues[1])
 print(resid_fit.pvalues[1])
 
-#  While we don't have strong evidence that the errors follow an AR(1)
+#  While we do not have strong evidence that the errors follow an AR(1)
 #  process we continue
 
 rho = resid_fit.params[1]
